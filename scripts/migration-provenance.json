@@ -1,0 +1,6 @@
+{
+  "original": "素材入库交互原型-demo最新版.html",
+  "scriptSha256": "ea8de4830458a643a92cdf4a3ace1b22a5ff1d9a20f70442a2799e31e9e6513d",
+  "cssSha256": "e0cd4818c78013bf7df1ee1abb5d6943de2afbe5434e852f8ae43d021fc4b53a",
+  "notes": "原脚本及样式原样拆分；新增浏览器全局事件兼容层，仅处理 Vite 模块作用域。"
+}

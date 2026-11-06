@@ -1,0 +1,7 @@
+# Supported by compatible static hosts; otherwise configure these in the host UI.
+/
+  Cache-Control: no-cache
+/index.html
+  Cache-Control: no-cache
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
