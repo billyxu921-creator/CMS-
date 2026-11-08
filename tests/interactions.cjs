@@ -10,7 +10,11 @@ run('switchUploadFile(0)');assert.equal(run('uploadAI.phase'),'done');assert(get
 run("files[0].checked=true;switchUploadFile(1);submitUpload(false)");assert.equal(run('pendingUpload.files.length'),1);assert.equal(run('pendingUpload.files[0].name'),'111.jpeg');run('cancelUploadConfirmation()');
 // Checked incomplete files block the batch and are opened for correction.
 run('files[1].checked=true;switchUploadFile(0);submitUpload(false)');assert.equal(run('pendingUpload'),null);assert.equal(run('activeUploadFile.name'),'222.jpeg');assert.equal(run('uploadAI.showValidation'),true);
-get('#desc').value='第二张的补充描述';get('#kind').value='案例';get('#product').value='辣鲜露';run("onUploadFieldEdit({target:{id:'desc'}});switchUploadFile(0);switchUploadFile(1)");assert.equal(get('#desc').value,'第二张的补充描述');assert.equal(get('#kind').value,'案例');assert.equal(get('#product').value,'辣鲜露');run('submitUpload(false)');assert.equal(run('pendingUpload.files.length'),2);run('confirmUploadYes()');assert.equal(run('items.length'),2);assert.equal(run('items[0].metadata.desc'),'第一张的独立描述');assert.equal(run('items[1].metadata.desc'),'第二张的补充描述');assert.equal(run('items[1].metadata.kind'),'案例');assert.equal(run('items[1].metadata.product'),'辣鲜露');assert.equal(run('files.length'),1);assert.equal(run('files[0].name'),'333.jpeg');run("acknowledgeUploadSuccess();go('upload');files[0].checked=true;submitUpload(false)");assert(get('#overlay').innerHTML.includes('库内已存在相似图片'));assert.equal(run('items.length'),2);
+get('#desc').value='第二张的补充描述';get('#kind').value='案例';run("onUploadFieldEdit({target:{id:'desc'}});toggleProduct(3,true);toggleProduct(4,true);toggleProduct(5,true);toggleProduct(5,false);switchUploadFile(0)");
+assert.equal(get('#product').value,'鲜麻青花椒酱');
+run('switchUploadFile(1)');
+assert.equal(get('#product-label').textContent,'辣鲜露、浓缩鸡汁');
+assert.equal(get('#desc').value,'第二张的补充描述');assert.equal(get('#kind').value,'案例');assert.equal(get('#product').value,'辣鲜露、浓缩鸡汁');run('submitUpload(false)');assert.equal(run('pendingUpload.files.length'),2);run('confirmUploadYes()');assert.equal(run('items.length'),2);assert.equal(run('items[0].metadata.desc'),'第一张的独立描述');assert.equal(run('items[1].metadata.desc'),'第二张的补充描述');assert.equal(run('items[1].metadata.kind'),'案例');assert.equal(run('items[1].metadata.product'),'辣鲜露、浓缩鸡汁');assert(run('storedAssetDetail(items[1])').includes('辣鲜露、浓缩鸡汁'));assert.equal(run('files.length'),1);assert.equal(run('files[0].name'),'333.jpeg');run("acknowledgeUploadSuccess();go('upload');files[0].checked=true;submitUpload(false)");assert(get('#overlay').innerHTML.includes('库内已存在相似图片'));assert.equal(run('items.length'),2);
 console.log('PASS: clickable names, independent concurrent AI and duplicate statuses, edits persist across switches, background callbacks do not overwrite active fields, checked-only per-file validation, correct per-file metadata committed, unselected files preserved.');
 // Browser inline handlers resolve `files` to the input element's files property.
 // Checkbox inputs expose files=null, so handlers must call a separate function.
@@ -20,7 +24,64 @@ run('(function(){with(this){setAllUploadChecked(this.checked)}}).call(checkbox)'
 console.log('PASS: checkbox inline scope with files=null no longer shadows data; single/all selection updates count, survives filename switches and drives confirmation accurately.');
 run("closeModal();go('queue')");let menu=run('addMenu()');const labels=['上传文件','上传文件夹','百度网盘导入','MUSE导入','新建纯文本','从素材库添加','新建子素材组'];let last=-1;for(const label of labels){assert(menu.indexOf(label)>last);last=menu.indexOf(label)}assert(menu.includes('<details'));assert.equal((menu.match(/chooseAddAction/g)||[]).length,7);
 const nativePickers=[];const originalCreateElement=ctx.document.createElement;ctx.document.createElement=tag=>{if(tag!=='input')return originalCreateElement(tag);let picker={attrs:[],setAttribute(k){this.attrs.push(k)},click(){this.clicked=true},remove(){this.removed=true}};nativePickers.push(picker);return picker};
-run("closeModal();chooseAddAction('file')");assert.equal(run('page'),'queue');assert.equal(get('#overlay').innerHTML,'');assert(nativePickers[0].clicked);nativePickers[0].files=[{name:'家乐素材.jpeg',size:700000}];nativePickers[0].onchange();assert.equal(run('page'),'queue','field page must not open before naming');assert(get('#overlay').innerHTML.includes('填写素材名字'));get('#material-name-0').value='本地文件';run('confirmMaterialNames()');assert.equal(run('page'),'upload');assert.equal(run('activeUploadFile.name'),'本地文件.jpeg');assert.equal(run('page'),'upload');assert.equal(run('activeUploadFile.name'),'本地文件.jpeg');
+const nativeUploadMark=timers.length;
+run("closeModal();items=[];go('library');chooseAddAction('file')");
+assert(nativePickers[0].clicked);
+nativePickers[0].files=[{name:'家乐素材.jpeg',size:700000}];
+nativePickers[0].onchange();
+assert.equal(run('page'),'library');
+assert.equal(run('items.length'),0);
+assert(get('#overlay').innerHTML.includes('填写素材名字'));
+get('#material-name-0').value='';
+run('confirmMaterialNames()');
+assert.equal(get('#material-name-error-0').textContent,'请填写素材名字');
+assert.equal(run('items.length'),0);
+get('#material-name-0').value='本地文件';
+get('#material-path-0').value='';
+run('confirmMaterialNames()');
+assert.equal(run('items.length'),0);
+assert(get('#overlay').innerHTML.includes('素材1.2.1.1'));
+assert(get('#overlay').innerHTML.includes('class="naming-tree-branch" hidden'));
+const namingBranch={hidden:true};
+const namingToggle={parentElement:{nextElementSibling:namingBranch},setAttribute(name,value){this[name]=value}};
+ctx.namingToggle=namingToggle;
+run('toggleNamingBranch(namingToggle)');
+assert.equal(namingBranch.hidden,false);
+assert.equal(namingToggle['aria-expanded'],'true');
+const routingPicker={open:true,querySelector(selector){
+  return get({input:'#material-path-0',summary:'#material-path-0-summary','.naming-tree-value':'#material-path-0-value'}[selector]);
+}};
+ctx.routingChoice={dataset:{path:'根素材组-1'},closest:()=>routingPicker};
+run('chooseNamingPath(routingChoice)');
+assert.equal(routingPicker.open,false);
+assert.equal(get('#material-path-0-value').textContent,'根素材组-1');
+run('confirmMaterialNames()');
+assert.equal(run('page'),'queue');
+assert.equal(get('#overlay').innerHTML,'');
+assert(run('queueContent()').includes('<th>状态</th>'));
+assert(get('#rows').innerHTML.includes('上传中'));
+assert.equal(run('items[0].duplicatePhase'),undefined);
+assert(run('clientSidebar()').includes('class="client-count">1</span>'));
+run('storeQueuedMaterial(0)');
+assert.equal(get('#overlay').innerHTML,'');
+timers.slice(nativeUploadMark).filter(t=>t.ms===350).forEach(t=>t.fn());
+assert(get('#rows').innerHTML.includes('AI 识别中'));
+timers.slice(nativeUploadMark).filter(t=>t.ms===2200).forEach(t=>t.fn());
+assert(get('#rows').innerHTML.includes('pending-status-label ready">待入库'));
+assert(!get('#rows').innerHTML.includes('已生成 4 个标签'));
+assert(!get('#rows').innerHTML.includes('查重通过'));
+run('storeQueuedMaterial(0)');
+assert.equal(get('#overlay').innerHTML,'');
+assert.equal(run('page'),'upload');
+assert.equal(run('activeUploadFile.name'),'本地文件.jpeg');
+assert.equal(run('items[0].status'),'待人工审核');
+assert.equal(run('pendingQueueItems().length'),0);
+assert(get('#app').innerHTML.includes('class="client-count">0</span>'));
+run("go('queue',{cancelApproval:true})");
+assert.equal(run('pendingQueueItems().length'),1);
+assert(get('#app').innerHTML.includes('class="client-count">1</span>'));
+run('deleteQueueItem(0)');
+
 run("go('queue');chooseAddAction('folder')");assert.equal(run('page'),'queue');assert(nativePickers[1].attrs.includes('webkitdirectory'));nativePickers[1].oncancel();assert.equal(run('page'),'queue');assert.equal(get('#overlay').innerHTML,'');
 run("go('queue');chooseAddAction('baidu')");assert(get('#overlay').innerHTML.includes('百度网盘导入'));assert(get('#overlay').innerHTML.includes('不连接外部服务'));get('#import-reference').value='https://pan.baidu.com/s/demo';get('#import-name').value='网盘素材';run("confirmAddAction('baidu')");assert.equal(run('pendingLocalFiles[0].name'),'网盘素材.pdf');assert(get('#overlay').innerHTML.includes('填写素材名字'));run("cancelMaterialNames();go('queue');chooseAddAction('muse')");assert(get('#overlay').innerHTML.includes('MUSE导入'));
 run("closeModal();chooseAddAction('group')");get('#subgroup-name').value='演示子组';run("confirmAddAction('group')");assert(run("materialGroups.includes('演示子组')"));assert(!run('clientSidebar()').includes('reference-tree'));assert(run("opts(['默认'],'group')").includes('演示子组'));
@@ -32,7 +93,7 @@ run("openMaterialGroup('家乐鲜露')");assert.equal(run('activeMaterialGroup')
 console.log('PASS: 全部素材 shows upload only; group rows open group view with collection/add menu and child folders; switching back restores global view; no material mutations.');
 ctx.location.href='file:///prototype.html';run("closeModal();go('tasks');taskModal()");let taskDialog=get('#overlay').innerHTML;for(const label of ['主题','有效期','备注','访问密码','刷新密码','复制链接分享','通知指定成员','生成任务'])assert(taskDialog.includes(label));assert(!taskDialog.includes('收集截止时间'));assert(!taskDialog.includes('任务名称'));let firstPassword=run('collectionPassword');assert.equal(firstPassword.length,4);run('refreshCollectionPassword()');assert.notEqual(run('collectionPassword'),firstPassword);get('#tn').value='新品素材收集';get('#ta').value='青禾创意';get('#tg').value='CRM / 品牌内容';get('#td').value='7';get('#task-note').value='只提交终版';run("setCollectionNotify('members')");assert.equal(get('#notify-members').hidden,false);get('#task-members').value='';let taskBefore=run('taskMade');run('createTask()');assert.equal(run('taskMade'),taskBefore);get('#task-members').value='张三，李四';run('createTask()');assert.equal(run('taskMade.name'),'新品素材收集');assert.equal(run('taskMade.expiryDays'),7);assert.equal(run('taskMade.note'),'只提交终版');assert.equal(run('taskMade.notify'),'members');assert.equal(run('taskMade.members'),'张三，李四');assert(get('#overlay').innerHTML.includes('任务已生成'));assert(get('#overlay').innerHTML.includes('file:///prototype.html#agency'));run('closeModal();previewAgency()');assert(get('#app').innerHTML.includes('请输入访问密码'));get('#agency-password').value='wrong';run('unlockAgency()');assert.equal(run('agencyUnlocked'),false);get('#agency-password').value=run('taskMade.password');run('unlockAgency()');assert.equal(run('agencyUnlocked'),true);assert(get('#app').innerHTML.includes('访客专属上传入口'));run('taskMade.expiresAt=Date.now()-1;render()');assert(get('#app').innerHTML.includes('收集任务已过期'));
 console.log('PASS: task terminology, validity select, password refresh, member notification validation/recording, generated link, same-session password preview and expiry. No notifications sent.');
-const backgroundMark=timers.length;run("closeModal();files=[];pendingLocalFiles=[];go('queue');addFiles([{name:'顺德鱼生.jpeg',size:700000},{name:'排骨.jpeg',size:400000}])");assert.equal(run('files.length'),0);assert.equal(run('pendingLocalFiles[0].aiState.phase'),'running');assert.equal(run('pendingLocalFiles[0].duplicatePhase'),'running');assert(get('#overlay').innerHTML.includes('填写素材名字'));assert.equal(timers.slice(backgroundMark).filter(t=>t.ms===2200).length,2);timers.slice(backgroundMark).filter(t=>t.ms===1600||t.ms===2200).forEach(t=>t.fn());assert.equal(run('pendingLocalFiles[0].aiState.phase'),'done');assert.deepEqual(Array.from(run('pendingLocalFiles[0].metadata.storageTags')),['顺德鱼生']);get('#material-name-0').value='图一';get('#material-name-1').value='图二';run("startUploadAfterNaming=true;confirmMaterialNames()");assert.equal(run('page'),'upload');assert.equal(run('page'),'upload');assert.equal(run('uploadAI.phase'),'done');assert(get('#storage-tags-list').innerHTML.includes('顺德鱼生'));assert(run('upload()').indexOf('加入素材组')<run('upload()').indexOf('入库标签'));run('openStorageTag()');get('#custom-storage-tag-input').value='自定义美食';run('addStorageTag()');assert.deepEqual(Array.from(run('files[0].metadata.storageTags')),['顺德鱼生','自定义美食']);run('switchUploadFile(1)');assert(get('#storage-tags-list').innerHTML.includes('排骨'));assert(!get('#storage-tags-list').innerHTML.includes('自定义美食'));run('switchUploadFile(0)');assert(get('#storage-tags-list').innerHTML.includes('自定义美食'));run('setUploadChecked(1,false);setUploadChecked(0,true);submitUpload(false);confirmUploadYes()');assert(run('items[items.length-1].metadata.storageTags').includes('自定义美食'));
+const backgroundMark=timers.length;run("closeModal();files=[];pendingLocalFiles=[];go('upload');addFiles([{name:'顺德鱼生.jpeg',size:700000},{name:'排骨.jpeg',size:400000}])");assert.equal(run('files.length'),0);assert.equal(run('pendingLocalFiles[0].aiState.phase'),'running');assert.equal(run('pendingLocalFiles[0].duplicatePhase'),'running');assert(get('#overlay').innerHTML.includes('填写素材名字'));assert.equal(timers.slice(backgroundMark).filter(t=>t.ms===2200).length,2);timers.slice(backgroundMark).filter(t=>t.ms===1600||t.ms===2200).forEach(t=>t.fn());assert.equal(run('pendingLocalFiles[0].aiState.phase'),'done');assert.deepEqual(Array.from(run('pendingLocalFiles[0].metadata.storageTags')),['顺德鱼生']);get('#material-name-0').value='图一';get('#material-name-1').value='图二';run("confirmMaterialNames()");assert.equal(run('page'),'upload');assert.equal(run('page'),'upload');assert.equal(run('uploadAI.phase'),'done');assert(get('#storage-tags-list').innerHTML.includes('顺德鱼生'));assert(run('upload()').indexOf('加入素材组')<run('upload()').indexOf('入库标签'));run('openStorageTag()');get('#custom-storage-tag-input').value='自定义美食';run('addStorageTag()');assert.deepEqual(Array.from(run('files[0].metadata.storageTags')),['顺德鱼生','自定义美食']);run('switchUploadFile(1)');assert(get('#storage-tags-list').innerHTML.includes('排骨'));assert(!get('#storage-tags-list').innerHTML.includes('自定义美食'));run('switchUploadFile(0)');assert(get('#storage-tags-list').innerHTML.includes('自定义美食'));run('setUploadChecked(1,false);setUploadChecked(0,true);submitUpload(false);confirmUploadYes()');assert(run('items[items.length-1].metadata.storageTags').includes('自定义美食'));
 const cancellationMark=timers.length;run("closeModal();addFiles([{name:'取消识别.jpeg',size:400000}]);cancelMaterialNames()");timers.slice(cancellationMark).forEach(t=>t.fn());assert.equal(run('pendingLocalFiles.length'),0);
 console.log('PASS: recognition and duplicate checking begin immediately on local selection during naming; completed results retained after rename; automatic/custom tags isolate and persist per file and into storage; cancel safely discards pending work.');
 run("closeModal();go('upload');paintStorageTags()");assert(run('storageTagControl()').includes('storage-tags-picker'));get('#storage-tags-dropdown').hidden=true;run('toggleStorageTagDropdown()');assert.equal(get('#storage-tags-dropdown').hidden,false);assert(get('#storage-tags-options').innerHTML.includes('排骨'));run("selectStorageTag('西餐')");assert(run("activeUploadFile.metadata.storageTags.includes('西餐')"));assert(get('#storage-tags-options').innerHTML.includes('删除标签 西餐'));assert(get('#storage-tags-options').innerHTML.includes('storage-tag-remove'));let storageTagsBefore=Array.from(run('activeUploadFile.metadata.storageTags'));run(`removeStorageTag(${storageTagsBefore.indexOf('西餐')})`);assert(!run("activeUploadFile.metadata.storageTags.includes('西餐')"));run('render()');assert(!run("activeUploadFile.metadata.storageTags.includes('西餐')"));run('openStorageTag()');get('#custom-storage-tag-input').value='自定义可删';run('addStorageTag()');assert(get('#storage-tags-options').innerHTML.includes('删除标签 自定义可删'));let index=run("activeUploadFile.metadata.storageTags.indexOf('自定义可删')");run(`removeStorageTag(${index})`);assert(!run("activeUploadFile.metadata.storageTags.includes('自定义可删')"));
@@ -55,36 +116,72 @@ console.log('PASS: >60% strict threshold; thumbnail gallery only eligible matche
 // upload confirmation archives a queued item, without creating a duplicate.
 run("closeModal();pendingUpload=null;pendingLocalFiles=[];items=[];files=[{name:'客户机密素材.jpeg',type:'JPEG',size:'1 MB',checked:true,duplicatePhase:'passed',metadata:{...initialFileFields(),desc:'说明',kind:'案例',product:'金客满',channel:'官微'},aiState:{phase:'done',missing:[]}}];go('upload');submitUpload(false);confirmUploadYes();acknowledgeUploadSuccess()");
 assert.equal(run('page'),'queue');assert.equal(run('items.length'),1);assert.equal(run('items[0].status'),'待人工审核');assert.equal(run('items[0].name'),'客户机密素材.jpeg');
-run('drawQueueRows()');assert(get('#rows').innerHTML.includes('素材****.jpeg'));assert(!get('#rows').innerHTML.includes('客户机密素材'));assert(run('queueContent()').includes('此处停留上传成功但未入库的全部素材'));assert.equal(run('items.filter(groupMatchesItem).length'),0);
-run('setQueueChecked(0,true)');assert.equal(run('queueSelection.size'),1);run('openQueuedUpload()');assert.equal(run('page'),'upload');assert.equal(run('files[0].metadata.desc'),'说明');assert.equal(run('files[0].checked'),true);assert.equal(run('files[0].queueSource'),run('items[0]'));
-run('submitUpload(false);confirmUploadYes()');assert.equal(run('items.length'),1);assert.equal(run('items[0].status'),'已入库');run('acknowledgeUploadSuccess();drawQueueRows()');assert.equal(run('pendingQueueItems().length'),0);assert.equal(run('queueSelection.size'),0);assert(get('#rows').innerHTML.includes('暂无待入库素材'));
+run('drawQueueRows()');assert(get('#rows').innerHTML.includes('客户机密素材.jpeg'));assert(run('queueContent()').includes('查看待入库素材和上传异常'));assert.equal(run('items.filter(groupMatchesItem).length'),0);
+run('setQueueChecked(0,true)');assert.equal(run('queueSelection.size'),1);run('storeQueuedMaterial()');assert.equal(run('page'),'upload');assert.equal(run('files[0].metadata.desc'),'说明');assert.equal(run('files[0].checked'),true);assert.equal(run('files[0].queueSource'),run('items[0]'));
+run('submitUpload(false);confirmUploadYes()');assert.equal(run('items.length'),1);assert.equal(run('items[0].status'),'已入库');assert(get('.client-sidebar').innerHTML.includes('class="client-count">0</span>'));run('acknowledgeUploadSuccess();drawQueueRows()');assert.equal(run('pendingQueueItems().length'),0);assert.equal(run('queueSelection.size'),0);assert(get('#rows').innerHTML.includes('暂无待入库素材'));
 run("items.push({name:'第二份.png',type:'PNG',status:'待人工审核'},{name:'第三份.jpg',type:'JPG',status:'待补充字段'});go('queue');setAllQueueChecked(true)");assert.equal(run('queueSelection.size'),2);run('deleteQueueSelection()');assert.equal(run('items.length'),1);assert.equal(run('items[0].status'),'已入库');assert.equal(run('queueSelection.size'),0);
-assert.equal(run("maskedMaterialName('<script>.jpg')"),'素材****.jpg');assert.equal(run("maskedMaterialName('无扩展名')"),'素材****');
-console.log('PASS: uploads land in pending queue, names masked only in presentation, per-file metadata retained, checked queue items use existing validation/confirmation and archive without duplicates, deletion preserves archived items.');
+console.log('PASS: uploads land in pending queue, entered names displayed, per-file metadata retained, checked queue items use existing validation/confirmation and archive without duplicates, deletion preserves archived items.');
 
-// Draft selection must not increase the pending count; only confirmed upload does.
+// AI tags start on arrival. Duplicate checks wait for the queue action and use archived images only.
 const stageTimerMark=timers.length;
-run("closeModal();items=[];files=[];pendingLocalFiles=[];queueSelection.clear();go('library');addFiles([{name:'家乐素材.jpeg',size:700000}])");get('#material-name-0').value='上传一张';
-run("pendingLocalFiles[0].previewUrl='blob:pending-image';startUploadAfterNaming=true;confirmMaterialNames()");
-assert.equal(run('page'),'upload');assert.equal(run('items.length'),0);assert.equal(run('files[0].aiState.phase'),'running');assert(run('clientSidebar()').includes('class="client-count">0</span>'));assert.equal(run('pendingQueueItems().length'),0);
-timers.slice(stageTimerMark).filter(t=>t.ms===1600||t.ms===2200).forEach(t=>t.fn());run('setUploadChecked(0,true);submitUpload(false)');assert.equal(run('items.length'),0);run('cancelUploadConfirmation()');assert(run('clientSidebar()').includes('class="client-count">0</span>'));run('submitUpload(false);confirmUploadYes();acknowledgeUploadSuccess()');assert.equal(run('page'),'queue');assert.equal(run('items.length'),1);assert(run('clientSidebar()').includes('class="client-count">1</span>'));run('drawQueueRows()');assert(get('#rows').innerHTML.includes('blob:pending-image'));assert(get('#rows').innerHTML.includes('素材****.jpeg'));assert(!run('queueContent()').includes('文件重复检测'));
-run("go('library');drawRows()");assert(get('#rows').innerHTML.includes('暂无符合条件的素材'));assert(run('content()').includes('（0）'));run("go('queue');drawRows()");assert(run('content()').includes('pending-queue'));assert(!run('content()').includes('入库工作台'));assert(!run('content()').includes('class="stats"'));assert(get('#rows').innerHTML.includes('立即入库'));
-run('openQueuedUpload(0);submitUpload(false);confirmUploadYes();acknowledgeUploadSuccess()');assert.equal(run('items.length'),1);assert.equal(run('items[0].status'),'已入库');assert(run('clientSidebar()').includes('class="client-count">0</span>'));
-console.log('PASS: selecting/naming/editing drafts and cancelling confirmation keep pending count 0; successful upload yields pending 1/library 0; approval decreases pending count to 0.');
-
-// First submission saves to pending; approval is available only after entering
-// through the pending module. Source association alone must never grant approval.
-const twoStageMark=timers.length;
-run("closeModal();items=[];files=[];pendingLocalFiles=[];queueSelection.clear();go('library');addFiles([{name:'家乐素材.jpeg',size:700000}])");get('#material-name-0').value='两阶段验证';run('startUploadAfterNaming=true;confirmMaterialNames()');assert.equal(run('page'),'upload');timers.slice(twoStageMark).filter(t=>t.ms===1600||t.ms===2200).forEach(t=>t.fn());run('setUploadChecked(0,true);submitUpload(false);confirmUploadYes();acknowledgeUploadSuccess()');assert.equal(run('page'),'queue');assert.equal(run('items.length'),1);assert.equal(run('items[0].status'),'待人工审核');assert(run('clientSidebar()').includes('class="client-count">1</span>'));run("go('library');drawRows()");assert(get('#rows').innerHTML.includes('暂无符合条件的素材'));assert(run('content()').includes('（0）'));
-run("go('queue');openQueuedUpload(0);submitUpload(false);confirmUploadYes();acknowledgeUploadSuccess()");assert.equal(run('items.length'),1);assert.equal(run('items[0].status'),'已入库');assert(run('clientSidebar()').includes('class="client-count">0</span>'));run("go('library');drawRows()");assert(get('#rows').innerHTML.includes('两阶段验证.jpeg'));assert(run('content()').includes('（1）'));
-console.log('PASS: upload-page confirmation leaves pending count 1/library 0; pending-module approval yields pending 0/library 1, without duplicate records.');
-
-// Repeated native uploads append to the current editing list, preserving earlier
-// selection, recognition state, and per-file edits.
-const appendTimerMark=timers.length;
-run("closeModal();items=[];files=[];pendingLocalFiles=[];queueSelection.clear();go('library');addFiles([{name:'家乐素材.jpeg',size:700000}])");get('#material-name-0').value='第一张';run('startUploadAfterNaming=true;confirmMaterialNames()');timers.slice(appendTimerMark).filter(t=>t.ms===1600||t.ms===2200).forEach(t=>t.fn());get('#desc').value='第一张保留的描述';run("onUploadFieldEdit({target:{id:'desc'}});setUploadChecked(0,true);addFiles([{name:'第二张.jpeg',size:300000}])");get('#material-name-0').value='第二张';run('startUploadAfterNaming=true;confirmMaterialNames()');
-assert.equal(run('files.length'),2);assert.equal(run('files[0].name'),'第一张.jpeg');assert.equal(run('files[1].name'),'第二张.jpeg');assert.equal(run('files[0].checked'),true);assert.equal(run('files[0].metadata.desc'),'第一张保留的描述');assert.equal(run('files[0].aiState.phase'),'done');assert.equal(run('files[0].duplicatePhase'),'passed');assert(run('upload()').includes('第一张.jpeg'));assert(run('upload()').includes('第二张.jpeg'));assert(run('clientSidebar()').includes('class="client-count">0</span>'));run('switchUploadFile(0)');assert.equal(get('#desc').value,'第一张保留的描述');assert.equal(run('items.length'),0);
-console.log('PASS: consecutive uploads append instead of replacing previous files; names, edited fields, selection and completed checks are preserved; unsubmitted drafts do not count as pending.');
+run("closeModal();items=[];files=[];pendingLocalFiles=[];queueSelection.clear();go('library');addFiles([{name:'重不过.jpeg',size:700000}],{toQueue:true})");
+get('#material-name-0').value='入库终版';
+get('#material-path-0').value='根素材组-1 / 子素材组1.2 / 子素材组1.2.1';
+get('#related-material-0').value='根素材组-3 / 素材3.1';
+run("confirmMaterialNames();addFiles([{name:'家乐素材.jpeg',size:300000}],{toQueue:true})");
+get('#material-name-0').value='入库终版';
+run('confirmMaterialNames()');
+assert(get('#material-name-conflict').innerHTML.includes('名字重复，请重新填写'));
+assert.equal(run('items.length'),1);
+run('dismissMaterialNameConflict(0)');
+get('#material-name-0').value='待入库第二张';
+get('#material-path-0').value='根素材组-2';
+get('#related-material-0').value='';
+run('confirmMaterialNames()');
+assert.equal(run('page'),'queue');
+assert.equal(run('pendingQueueItems().length'),2);
+assert.equal(run('files.length'),0);
+assert.equal(run("items.filter(x=>x.status==='已入库').length"),0);
+assert(run('clientSidebar()').includes('class="client-count">2</span>'));
+run("imageSimilarity=(a,b)=>b.testScore;items[0].visualDescriptor={testScore:1};items[1].visualDescriptor={testScore:1};items.push({name:'已有.jpeg',type:'JPEG',status:'已入库',visualDescriptor:{testScore:.86}},{name:'另一张已入库.jpeg',type:'JPEG',status:'已入库',visualDescriptor:{testScore:.72}},{name:'阈值.jpeg',type:'JPEG',status:'已入库',visualDescriptor:{testScore:.60}});setQueueChecked(0,true)");
+timers.slice(stageTimerMark).filter(t=>t.ms===350).forEach(t=>t.fn());
+assert.equal(run('items[0].aiState.phase'),'running');
+assert.equal(run('items[0].duplicatePhase'),'similar');
+assert(!get('#rows').innerHTML.includes('发现相似图片'));
+assert.equal(get('#overlay').innerHTML,'');
+timers.slice(stageTimerMark).filter(t=>t.ms===2200).forEach(t=>t.fn());
+run('storeQueuedMaterial(0)');
+assert.equal(run('page'),'upload');
+assert.equal(get('#overlay').innerHTML,'');
+assert(get('#duplicate-0').innerHTML.includes('发现相似图片'));
+run('submitUpload(false)');
+assert(get('#overlay').innerHTML.includes('是否确定上传'));
+run('cancelUploadConfirmation();openDuplicateDetails(0)');
+assert(get('#overlay').innerHTML.includes('相似度 86%'));
+assert(get('#overlay').innerHTML.includes('相似度 72%'));
+assert(!get('#overlay').innerHTML.includes('相似度 100%'));
+assert(!get('#overlay').innerHTML.includes('阈值.jpeg'));
+run('cancelSimilarityWarning()');
+assert.equal(get('#overlay').innerHTML,'');
+assert.notEqual(run('files[0].similarityAccepted'),true);
+assert.equal(run('files[0].aiState.phase'),'done');
+assert.equal(run('items[0].status'),'待人工审核');
+assert.equal(run('pendingQueueItems().length'),1);
+assert(get('#app').innerHTML.includes('class="client-count">1</span>'));
+assert.equal(get('#group').value,'根素材组-1 / 子素材组1.2 / 子素材组1.2.1');
+run('submitUpload(false);cancelUploadConfirmation()');
+assert.equal(run('pendingQueueItems().length'),1);
+run('submitUpload(false);confirmUploadYes();acknowledgeUploadSuccess()');
+assert.equal(run('items.length'),5);
+assert.equal(run('pendingQueueItems().length'),1);
+assert.equal(run('items[0].name'),'入库终版.jpeg');
+run("go('library')");
+assert(get('#rows').innerHTML.includes('入库终版.jpeg'));
+assert.equal(run('items[0].metadata.relatedAssetPath'),'根素材组-3 / 素材3.1');
+run("openMaterialGroup('根素材组-1 / 子素材组1.2 / 子素材组1.2.1')");
+assert(get('#rows').innerHTML.includes('入库终版.jpeg'));
+run('imageSimilarity=realSimilarity');
+console.log('PASS: similarity and AI tagging run together; viewing and accepting similarity are optional before upload.');
 
 // Similarity warnings include previous pending uploads, not just archived assets,
 // while never treating the current pending record as its own match.
@@ -93,7 +190,7 @@ console.log('PASS: >60% similarity against pending images opens thumbnail confir
 
 // Pending identical images join the same version family, ordered by upload.
 // Earlier images must not later upgrade themselves using a newer pending image.
-run("closeModal();pendingSimilarityPrompt=null;pendingUpload=null;items=[];files=[];pendingLocalFiles=[];items=[{name:'第一版.jpeg',type:'JPEG',status:'待人工审核',visualDescriptor:versionDescriptor,metadata:{...initialFileFields(),version:'V1.0'},aiState:{phase:'done',missing:[]}}];refreshMaterialVersion(items[0]);items.push({name:'第二版.jpeg',type:'JPEG',status:'待人工审核',visualDescriptor:versionDescriptor,metadata:initialFileFields(),aiState:{phase:'done',missing:[]}});refreshMaterialVersion(items[1])");assert.equal(run('items[0].metadata.version'),'V1.0');assert.equal(run('items[1].metadata.version'),'V2.0');assert.equal(run('items[1].versionBase.name'),'第一版.jpeg');assert.equal(run('items[1].versionFamily'),run('items[0].versionFamily'));run('refreshMaterialVersion(items[0])');assert.equal(run('items[0].metadata.version'),'V1.0');run('openQueuedUpload(1);paintVersionPanel()');assert(get('#version-panel').innerHTML.includes('第一版.jpeg'));assert(get('#version-panel').innerHTML.includes('V1.0'));assert(!get('#version-panel').innerHTML.includes('未找到'));
+run("closeModal();pendingSimilarityPrompt=null;pendingUpload=null;items=[];files=[];pendingLocalFiles=[];items=[{name:'第一版.jpeg',type:'JPEG',status:'待人工审核',visualDescriptor:versionDescriptor,metadata:{...initialFileFields(),version:'V1.0'},aiState:{phase:'done',missing:[]}}];refreshMaterialVersion(items[0]);items.push({name:'第二版.jpeg',type:'JPEG',status:'待人工审核',visualDescriptor:versionDescriptor,metadata:initialFileFields(),aiState:{phase:'done',missing:[]}});refreshMaterialVersion(items[1])");assert.equal(run('items[0].metadata.version'),'V1.0');assert.equal(run('items[1].metadata.version'),'V2.0');assert.equal(run('items[1].versionBase.name'),'第一版.jpeg');assert.equal(run('items[1].versionFamily'),run('items[0].versionFamily'));run('refreshMaterialVersion(items[0])');assert.equal(run('items[0].metadata.version'),'V1.0');run("items[1].duplicatePhase='passed';go('queue');storeQueuedMaterial(1)");run('paintVersionPanel()');assert(get('#version-panel').innerHTML.includes('第一版.jpeg'));assert(get('#version-panel').innerHTML.includes('V1.0'));assert(!get('#version-panel').innerHTML.includes('未找到'));
 run("items.push({name:'第三版.jpeg',type:'JPEG',status:'待人工审核',visualDescriptor:versionDescriptor,metadata:initialFileFields(),aiState:{phase:'done',missing:[]}});refreshMaterialVersion(items[2])");assert.equal(run('items[2].metadata.version'),'V3.0');assert.equal(run('items[2].versionBase.version'),'V2.0');
 console.log('PASS: identical pending images associate V1.0→V2.0→V3.0; version panel shows prior image; self and later uploads cannot cause reverse/circular upgrades.');
 
@@ -104,22 +201,131 @@ run("items.push({name:'待入库.jpeg',type:'JPEG',status:'待人工审核',visu
 run("items=[];pendingLocalFiles=[];files=[{name:'手动三段版本.jpeg',type:'JPEG',metadata:{...initialFileFields(),version:'1.1.2'},versionMode:'manual',aiState:{phase:'done',missing:[]}}];activeUploadFile=files[0];validateVersionBatch(files)");assert.equal(run('files[0].metadata.version'),'V1.1.2');
 console.log('PASS: versions accept 1.1.2/V1.1.2; similarity and prior-version association cover uploaded, pending and archived images with deduplicated candidates.');
 
-// Immediate storage uses the submitted record directly, preserving its group.
-run("closeModal();pendingUpload=null;pendingSimilarityPrompt=null;items=[{name:'立即入库验证.jpeg',type:'JPEG',size:'1 MB',status:'待人工审核',duplicatePhase:'passed',metadata:{...initialFileFields(),group:'品牌内容 / 新品发布',desc:'保持描述',kind:'案例',product:'金客满',channel:'官微',version:'V1.1.2'},aiState:{phase:'done',missing:[]}}];files=[];pendingLocalFiles=[];queueSelection.clear();go('queue');setQueueChecked(0,true)");assert(run('drawQueueRows();document.querySelector("#rows").innerHTML').includes('storeQueuedMaterial(0)'));run('storeQueuedMaterial(0)');assert.equal(run('page'),'queue');assert.equal(run('items.length'),1);assert.equal(run('items[0].status'),'已入库');assert.equal(run('pendingQueueItems().length'),0);assert.equal(run('queueSelection.size'),0);assert(run('clientSidebar()').includes('class="client-count">0</span>'));run("go('library');drawRows()");assert(get('#rows').innerHTML.includes('立即入库验证.jpeg'));run("openMaterialGroup('品牌内容 / 新品发布');drawRows()");assert(get('#rows').innerHTML.includes('立即入库验证.jpeg'));assert.equal(run('items[0].metadata.version'),'V1.1.2');assert.equal(run('items[0].metadata.desc'),'保持描述');run("openMaterialGroup('其他素材组');drawRows()");assert(!get('#rows').innerHTML.includes('立即入库验证.jpeg'));
-console.log('PASS: immediate storage archives the same record directly into all materials and its matching group; pending count decreases and metadata remains unchanged.');
-
-// The queue toolbar archives the checked batch in place after validating all of it.
-run("items=[...['甲.jpeg','乙.jpeg','未勾选.jpeg'].map(name=>({...items[0],name,status:'待人工审核'}))];items[1].duplicatePhase='running';go('queue');setQueueChecked(0,true);setQueueChecked(1,true)");
+// Batch approval opens the information page for only the selected files.
+run("closeModal();pendingUpload=null;items=['甲.jpeg','乙.jpeg','未勾选.jpeg'].map(name=>({name,type:'JPEG',size:'1 MB',status:'待人工审核',duplicatePhase:'passed',metadata:{...initialFileFields(),group:'品牌内容 / 新品发布',desc:'保持描述',kind:'案例',product:'金客满',channel:'官微'},aiState:{phase:'done',missing:[]}}));files=[];pendingLocalFiles=[];queueSelection.clear();go('queue');setQueueChecked(0,true);setQueueChecked(1,true)");
 assert(run('queueContent()').includes('onclick="storeQueuedMaterial()">入库所选'));
-run('storeQueuedMaterial()');
+run('items[1].visualPending=true;storeQueuedMaterial()');
+assert.equal(get('#overlay').innerHTML,'');
 assert.equal(run('pendingQueueItems().length'),3);
-assert.equal(run('queueSelection.size'),2);
-run("items[1].duplicatePhase='passed';storeQueuedMaterial()");
-assert.equal(run('page'),'queue');
+run('items[1].visualPending=false;storeQueuedMaterial()');
+assert.equal(run('page'),'upload');
+assert.equal(run('files.length'),2);
+assert.equal(run('pendingQueueItems().length'),1);
+run("go('queue',{cancelApproval:true})");
+assert.equal(run('files.length'),0);
+assert.equal(run('pendingQueueItems().length'),3);
+run('storeQueuedMaterial()');
+run('submitUpload(false);confirmUploadYes();acknowledgeUploadSuccess()');
 assert.equal(run('pendingQueueItems().length'),1);
 assert.equal(run('pendingQueueItems()[0].name'),'未勾选.jpeg');
 assert.equal(run('queueSelection.size'),0);
-run("go('library');drawRows()");
+run("go('library')");
 assert(get('#rows').innerHTML.includes('甲.jpeg'));
 assert(get('#rows').innerHTML.includes('乙.jpeg'));
 assert(!get('#rows').innerHTML.includes('未勾选.jpeg'));
+console.log('PASS: batch approval opens the information page, cancellation leaves the queue intact, and unselected items stay pending.');
+
+// Adding files from the information page returns to the queue and keeps prior edits.
+const draftTimerStart=timers.length;
+run("items=[];files=[];queueSelection.clear();go('library');addFiles([{name:'待编辑.jpeg',size:200000}],{toQueue:true})");
+get('#material-name-0').value='已编辑';
+get('#material-path-0').value='根素材组-10';
+run('confirmMaterialNames()');
+timers.slice(draftTimerStart).filter(timer=>timer.ms===350).forEach(timer=>timer.fn());
+timers.slice(draftTimerStart).filter(timer=>timer.ms===2200).forEach(timer=>timer.fn());
+run('setQueueChecked(0,true);storeQueuedMaterial()');
+get('#desc').value='保留的素材简介';
+run("addFiles([{name:'追加文件.jpeg',size:300000}],{toQueue:true})");
+assert.equal(run('page'),'upload');
+run('cancelMaterialNames()');
+assert.equal(run('pendingQueueItems().length'),0);
+assert.equal(get('#desc').value,'保留的素材简介');
+run("addFiles([{name:'追加文件.jpeg',size:300000}],{toQueue:true})");
+get('#material-name-0').value='追加文件';
+get('#material-path-0').value='根素材组-10';
+run('confirmMaterialNames()');
+assert.equal(run('page'),'queue');
+assert.equal(run('pendingQueueItems().length'),1);
+assert(run('queueContent()').includes('继续入库（1）'));
+run('openQueuedUpload([])');
+assert.equal(run('activeUploadFile.name'),'已编辑.jpeg');
+assert.equal(get('#desc').value,'保留的素材简介');
+
+
+// The approved list follows entry order, with a checked batch kept together.
+run("items=['先上传.jpeg','先点入库.jpeg','同批末尾.jpeg'].map(name=>({name,type:'JPEG',size:'1 MB',status:'待人工审核',metadata:{...initialFileFields(),kind:'案例',product:'金客满',channel:'官微'},aiState:{phase:'done',missing:[]}}));files=[];queueSelection.clear();go('queue');storeQueuedMaterial(1)");
+assert.equal(run('page'),'upload');
+assert.equal(run('pendingQueueItems().length'),2);
+assert(get('#app').innerHTML.includes('class="client-count">2</span>'));
+run('submitUpload(false);confirmUploadYes();acknowledgeUploadSuccess();setQueueChecked(0,true);setQueueChecked(2,true);storeQueuedMaterial()');
+assert.equal(run('pendingQueueItems().length'),0);
+run("submitUpload(false);confirmUploadYes();acknowledgeUploadSuccess();go('library')");
+const approvedRows=get('#rows').innerHTML;
+assert(approvedRows.includes('先点入库.jpeg')&&approvedRows.includes('先上传.jpeg')&&approvedRows.includes('同批末尾.jpeg'));
+assert(approvedRows.indexOf('先点入库.jpeg')<approvedRows.indexOf('先上传.jpeg'));
+assert(approvedRows.indexOf('先上传.jpeg')<approvedRows.indexOf('同批末尾.jpeg'));
+
+
+// Returning via the sidebar keeps each item in progress until it is resumed or cancelled.
+run("items=['第一份.jpeg','第二份.jpeg','第三份.jpeg'].map(name=>({name,type:'JPEG',size:'1 MB',status:'待人工审核',metadata:{...initialFileFields(),kind:'案例',product:'金客满',channel:'官微'},aiState:{phase:'done',missing:[]}}));files=[];queueSelection.clear();go('queue')");
+for(const [index, remaining] of [[1,2],[0,1],[2,0]]){
+  run(`storeQueuedMaterial(${index});go('queue')`);
+  assert.equal(run('pendingQueueItems().length'),remaining);
+  assert(get('#app').innerHTML.includes(`class="client-count">${remaining}</span>`));
+}
+assert(get('#rows').innerHTML.includes('暂无待入库素材'));
+assert(run('queueContent()').includes('继续入库（3）'));
+assert.equal(run("items.filter(file=>file.status==='已入库').length"),0);
+run("openQueuedUpload([]);submitUpload(false);confirmUploadYes();acknowledgeUploadSuccess();go('library')");
+assert.equal(run("items.filter(file=>file.status==='已入库').length"),3);
+const resumedRows=get('#rows').innerHTML;
+assert(resumedRows.indexOf('第二份.jpeg')<resumedRows.indexOf('第一份.jpeg'));
+assert(resumedRows.indexOf('第一份.jpeg')<resumedRows.indexOf('第三份.jpeg'));
+
+// Identical files in one approval batch match each other without an archived copy.
+run("items=['1.jpeg','2.jpeg','未选.jpeg'].map(name=>({name,type:'JPEG',size:'1 MB',status:'待人工审核',visualDescriptor:versionDescriptor,metadata:{...initialFileFields(),kind:'案例',product:'金客满',channel:'官微'},aiState:{phase:'done',missing:[]}}));files=[];queueSelection.clear();go('queue');setQueueChecked(0,true);setQueueChecked(1,true);storeQueuedMaterial()");
+assert.equal(run('page'),'upload');
+assert.equal(get('#overlay').innerHTML,'');
+assert.equal(run('files[0].similarMatches[0].item.name'),'2.jpeg');
+assert.equal(run('files[1].similarMatches[0].item.name'),'1.jpeg');
+assert.equal(run('files[0].similarMatches.length'),1);
+assert.equal(run('files[1].similarMatches.length'),1);
+run('openDuplicateDetails(0)');
+assert(get('#overlay').innerHTML.includes('相似度 100%'));
+assert(!get('#overlay').innerHTML.includes('未选.jpeg'));
+
+
+// Upload exceptions remain visible in the queue; AI exceptions can be corrected manually.
+const exceptionStart=timers.length;
+run("closeModal();items=[];files=[];queueSelection.clear();go('library');addFiles([{name:'AI识别失败.jpeg',size:0},{name:'超限.jpeg',size:501*1024*1024}],{toQueue:true})");
+assert.equal(run('page'),'queue');
+assert(get('#rows').innerHTML.includes('文件为空'));
+assert(get('#rows').innerHTML.includes('超过 500 MB'));
+assert(get('#app').innerHTML.includes('class="client-count">0</span>'));
+run('setAllQueueChecked(true);storeQueuedMaterial()');
+assert.equal(run('page'),'queue');
+run("queueSelection.clear();addFiles([{name:'正常原文件.jpeg',size:100000},{name:'压缩包.zip',size:200000}],{toQueue:true})");
+get('#material-name-0').value='AI识别失败';
+get('#material-name-1').value='压缩包';
+get('#material-path-0').value='根素材组-1';
+get('#material-path-1').value='根素材组-1';
+run('confirmMaterialNames()');
+timers.slice(exceptionStart).filter(timer=>timer.ms===350).forEach(timer=>timer.fn());
+timers.slice(exceptionStart).filter(timer=>timer.ms===2200).forEach(timer=>timer.fn());
+assert(get('#rows').innerHTML.includes('pending-status-label error">AI 识别失败'));
+assert(get('#rows').innerHTML.includes('pending-image-title ai-failed'));
+assert(get('#rows').innerHTML.includes('AI 不支持此文件类型'));
+assert(get('#app').innerHTML.includes('class="client-count">2</span>'));
+run('storeQueuedMaterial(2);submitUpload(false)');
+assert.equal(run('page'),'upload');
+assert(get('#app').innerHTML.includes('upload-file-link active ai-failed'));
+assert(get('#upload-ai-status').innerHTML.includes('AI 识别失败'));
+assert.equal(run('pendingUpload'),null);
+get('#desc').value='手动补充素材简介';
+get('#kind').value='案例';
+get('#product').value='金客满';
+get('#channel').value='官微';
+run('submitUpload(false);confirmUploadYes();acknowledgeUploadSuccess()');
+assert.equal(run('items[2].status'),'已入库');
+assert.equal(run('items[0].status'),'上传失败');
+assert(get('#rows').innerHTML.includes('AI 不支持此文件类型'));
