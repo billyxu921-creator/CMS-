@@ -417,3 +417,23 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden}#app{width:100%;height
 .stored-share-settings select{width:auto}
 .stored-share-settings summary{cursor:pointer}
 .stored-share-settings details{margin-left:auto}
+
+.batch-naming-modal{display:flex;flex-direction:column;width:720px;overflow:hidden}
+.batch-naming-modal.naming-with-routing{width:960px}
+.batch-naming-count{margin:8px 0 0}
+.batch-naming-modal .batch-naming-list{min-height:0;max-height:55vh;overflow:auto;margin-top:16px;padding:0;border:1px solid #dce2e8;border-radius:6px}
+.batch-naming-list table{width:100%;min-width:400px;table-layout:fixed;border-collapse:separate;border-spacing:0}
+.naming-with-routing .batch-naming-list table{min-width:670px}
+.batch-naming-list thead th{position:sticky;top:0;z-index:1;background:#f3f6f8}
+.batch-naming-list th,.batch-naming-list td{padding:10px;text-align:left;vertical-align:top}
+.batch-naming-list tbody th{font-weight:400}
+.batch-naming-source,.batch-naming-input{display:flex;align-items:center;gap:8px;min-width:0}
+.batch-naming-source span,.batch-naming-input span{overflow-wrap:anywhere}
+.batch-naming-source img,.batch-naming-file-type{flex:0 0 40px;width:40px;height:40px;border-radius:4px;background:#f3f6f8}
+.batch-naming-source img{object-fit:contain}
+.batch-naming-file-type{display:grid;place-items:center;font-size:10px;color:#647485}
+.batch-naming-input input{flex:1;width:100%;min-width:0}
+.batch-naming-input span{max-width:40%;color:#647485;font-size:12px}
+.batch-naming-modal .batch-naming-list .naming-error{margin:4px 0 0;min-height:0}
+.batch-naming-list .naming-tree-label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.batch-naming-modal .foot{flex:none}

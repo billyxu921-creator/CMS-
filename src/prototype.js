@@ -917,11 +917,55 @@ function namingRoutingFields(index){
   return namingTreeField('material-path-'+index,'素材存放路径','请选择素材存放路径',true)
     +namingTreeField('related-material-'+index,'需关联素材','无需关联',false);
 }
+function materialNameInput(index,initialName){
+  const batch=initialName!==undefined;
+  return `<input id="material-name-${index}" type="text" maxlength="150" placeholder="${batch?'请输入素材名称':'请输入素材名字'}"
+    ${batch?`aria-label="第 ${index+1} 个文件的素材名称" value="${esc(initialName)}"`:''} aria-describedby="material-name-error-${index}"
+    autocomplete="off" oninput="clearMaterialNameError(${index})" onkeydown="if(event.key==='Enter'){event.preventDefault();confirmMaterialNames()}">`;
+}
+function materialNameError(index){
+  return `<div id="material-name-error-${index}" class="naming-error" role="alert"></div>`;
+}
+function batchMaterialNaming(files,toQueue){
+  return `<div class="naming-list batch-naming-list" role="region" aria-label="批量命名文件列表" tabindex="0">
+    <table>
+      <thead><tr><th scope="col">原文件</th><th scope="col">素材名称<span class="required"> *</span></th>
+        ${toQueue?'<th scope="col">素材存放路径<span class="required"> *</span></th><th scope="col">需关联素材</th>':''}
+      </tr></thead>
+      <tbody>${files.map((file,index)=>{
+        const suffix=file.originalName.match(/\.[^.]+$/);
+        const extension=suffix?.index?suffix[0]:'';
+        const initialName=extension?file.originalName.slice(0,-extension.length):file.originalName;
+        const thumbnail=file.previewUrl&&['JPG','JPEG','PNG','GIF','WEBP'].includes(file.type)
+          ?`<img src="${esc(file.previewUrl)}" alt="" loading="lazy">`
+          :`<span class="batch-naming-file-type" aria-hidden="true">${esc(file.type||'文件')}</span>`;
+        return `<tr>
+          <th scope="row"><div class="batch-naming-source">${thumbnail}<span>${esc(file.originalName)}</span></div></th>
+          <td><div class="batch-naming-input">${materialNameInput(index,initialName)}${extension?`<span>${esc(extension)}</span>`:''}</div>${materialNameError(index)}</td>
+          ${toQueue?`<td>${namingTreeField('material-path-'+index,'素材存放路径','请选择素材存放路径',true)}</td>
+            <td>${namingTreeField('related-material-'+index,'需关联素材','无需关联',false)}</td>`:''}
+        </tr>`;
+      }).join('')}</tbody>
+    </table>
+  </div>`;
+}
 function showMaterialNaming(valid,toQueue=false,retryItem=null){
   pendingRetryItem=retryItem;
   namingToQueue=toQueue;
   pendingLocalFiles=valid;
-  $('#overlay').innerHTML=`<div class="modalbg"><div class="modal naming-modal ${toQueue?'naming-with-routing':''}" role="dialog" aria-modal="true" aria-labelledby="naming-title"><h2 id="naming-title">填写素材名字</h2><div class="naming-list">${valid.map((f,i)=>`<div class="naming-item">${valid.length>1?`<div class="muted naming-source">${esc(f.originalName)}</div>`:''}<div class="naming-row"><label for="material-name-${i}">名字<span class="required"> *</span></label><input id="material-name-${i}" type="text" maxlength="150" placeholder="请输入素材名字" autocomplete="off" oninput="clearMaterialNameError(${i})" onkeydown="if(event.key==='Enter'){event.preventDefault();confirmMaterialNames()}"></div><div id="material-name-error-${i}" class="naming-error" role="alert"></div>${toQueue?namingRoutingFields(i):''}</div>`).join('')}</div><div class="foot"><button onclick="cancelMaterialNames()">取消</button><button class="primary" onclick="confirmMaterialNames()">确定</button></div></div></div><div id="material-name-conflict"></div>`;$('#material-name-0')?.focus?.({preventScroll:true})}
+  const batch=valid.length>1;
+  const body=batch?batchMaterialNaming(valid,toQueue):`<div class="naming-list"><div class="naming-item">
+    <div class="naming-row"><label for="material-name-0">名字<span class="required"> *</span></label>${materialNameInput(0)}</div>
+    ${materialNameError(0)}${toQueue?namingRoutingFields(0):''}
+  </div></div>`;
+  $('#overlay').innerHTML=`<div class="modalbg"><div class="modal naming-modal ${toQueue?'naming-with-routing':''} ${batch?'batch-naming-modal':''}" role="dialog" aria-modal="true" aria-labelledby="naming-title">
+    <h2 id="naming-title">${batch?'批量命名素材':'填写素材名字'}</h2>
+    ${batch?`<p class="sub batch-naming-count">共 ${valid.length} 个文件</p>`:''}
+    ${body}
+    <div class="foot"><button onclick="cancelMaterialNames()">取消</button><button class="primary" onclick="confirmMaterialNames()">确定</button></div>
+  </div></div><div id="material-name-conflict"></div>`;
+  $('#material-name-0')?.focus?.({preventScroll:true});
+}
 function clearMaterialNameError(i){let n=$('#material-name-'+i);if(n?.value.trim()){n.classList?.remove('ai-field-error');n.removeAttribute?.('aria-invalid');$('#material-name-error-'+i).textContent=''}}
 function cancelMaterialNames(){pendingRetryItem=null;namingToQueue=false;pendingLocalFiles=[];closeModal();if($('#picker'))$('#picker').value=''}
 function showMaterialNameConflict(index){
@@ -938,7 +982,7 @@ function showMaterialNameConflict(index){
 function dismissMaterialNameConflict(index){
   $('#material-name-conflict').innerHTML='';
   $('.naming-modal')?.removeAttribute('inert');
-  $('#material-name-'+index)?.focus?.({preventScroll:true});
+  $('#material-name-'+index)?.focus?.();
 }
 
 function confirmMaterialNames(){
@@ -969,9 +1013,9 @@ function confirmMaterialNames(){
     if(message&&firstError<0)firstError=index;
     if(conflict&&firstConflict<0)firstConflict=index;
   });
-  if(firstConflict>=0)return showMaterialNameConflict(firstConflict);
+  if(firstConflict>=0)return showMaterialNameConflict(firstError);
   if(firstError>=0){
-    $('#material-name-'+firstError)?.focus?.({preventScroll:true});
+    $('#material-name-'+firstError)?.focus?.();
     return;
   }
   const batch=pendingLocalFiles;
