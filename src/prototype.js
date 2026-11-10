@@ -9,9 +9,23 @@ const appliedSearchTags=new Set();
 const currentReviewer='林晓';
 let collectionNavigationExpanded=true,externalReviewItem=null;
 function canReview(item){return item?.externalSubmission===true&&item.reviewer===currentReviewer&&item.status==='待人工审核'}
+function isReviewRecord(item){
+  return canReview(item)||item?.externalSubmission===true&&item.reviewer===currentReviewer&&item.status==='已退回';
+}
+function externalReviewStatus(item){
+  if(item.status==='已退回')return '退回中';
+  if(item.status==='待人工审核')return item.reviewHistory?.some(entry=>entry.action==='已退回')?'已上传':'待审核';
+  return item.status;
+}
 const tag=s=>`<span class="tag ${s.includes('补充')?'warn':s.includes('拒绝')||s.includes('退回')?'bad':s.includes('审核')?'blue':''}">${s}</span>`;
 function go(p,{cancelApproval=false}={}){
   captureUploadDraft();
+  if(page==='agency'&&p!=='agency'&&agencyResubmission){
+    agencyResubmission=null;
+    files=[];
+    activeUploadFile=null;
+    displayedUploadFile=null;
+  }
   if(page==='upload'&&p!=='upload'&&files.some(file=>file.approveFromQueue)){
     if(!cancelApproval){
       for(const file of files){
@@ -115,7 +129,7 @@ function render(){let ext=page==='agency';$('#app').innerHTML=`<div class="clien
 
 function sidebarIcon(name){let paths={trash:'<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',layers:'<path d="m3 7 9-5 9 5-9 5-9-5Zm0 5 9 5 9-5M3 17l9 5 9-5"/>',inbox:'<path d="M5 6 7 3h10l2 3M4 6h16v15H4zM9 10h6"/>',favorite:'<path d="m12 3 3 3-3 3-3-3 3-3ZM2 15l6 2h7m-13 2 7 3 12-6-4-2-5 2M5 12l6 1 3 3"/>',person:'<circle cx="12" cy="7" r="4"/><path d="M4 22v-3a8 8 0 0 1 16 0v3"/>',folder:'<path d="M2 5h7l2 3h11v13H2z"/>',group:'<path d="M2 4h8l2 3h10v14H2z"/><circle cx="9" cy="12" r="2"/><path d="M5 19v-1a4 4 0 0 1 8 0v1m2-7a2 2 0 0 1 1 4m0 0a4 4 0 0 1 3 3"/>'};return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]||paths.folder}</svg>`}
 let sidebarAssetsExpanded=true,sidebarContentExpanded=true;
-function clientSidebar(){let approvedCount=items.filter(x=>x.status==='已入库').length,pendingCount=items.filter(item=>isPendingQueueItem(item)&&!item.uploadError).length,reviewCount=items.filter(canReview).length;return `<nav class="reference-nav cms-nav"><div class="cms-nav-root ${['library','archived','queue'].includes(page)?'active':''}"><button onclick="go('library')">${sidebarIcon('layers')}<span>全部素材</span><span class="cms-nav-count">${approvedCount}</span></button><button class="cms-nav-toggle" aria-label="展开或收起全部素材" aria-expanded="${sidebarAssetsExpanded}" onclick="sidebarAssetsExpanded=!sidebarAssetsExpanded;render()">${sidebarAssetsExpanded?'⌃':'⌄'}</button></div><div class="cms-nav-children" ${sidebarAssetsExpanded?'':'hidden'}><button class="${page==='archived'?'active':''}" onclick="go('archived')"><span>已入库</span><span class="cms-nav-count">${approvedCount}</span></button><button class="${page==='queue'?'active':''}" onclick="go('queue')"><span>待入库</span><span class="cms-nav-count">${pendingCount}</span></button></div>
+function clientSidebar(){let approvedCount=items.filter(x=>x.status==='已入库').length,pendingCount=items.filter(item=>isPendingQueueItem(item)&&!item.uploadError).length,reviewCount=items.filter(isReviewRecord).length;return `<nav class="reference-nav cms-nav"><div class="cms-nav-root ${['library','archived','queue'].includes(page)?'active':''}"><button onclick="go('library')">${sidebarIcon('layers')}<span>全部素材</span><span class="cms-nav-count">${approvedCount}</span></button><button class="cms-nav-toggle" aria-label="展开或收起全部素材" aria-expanded="${sidebarAssetsExpanded}" onclick="sidebarAssetsExpanded=!sidebarAssetsExpanded;render()">${sidebarAssetsExpanded?'⌃':'⌄'}</button></div><div class="cms-nav-children" ${sidebarAssetsExpanded?'':'hidden'}><button class="${page==='archived'?'active':''}" onclick="go('archived')"><span>已入库</span><span class="cms-nav-count">${approvedCount}</span></button><button class="${page==='queue'?'active':''}" onclick="go('queue')"><span>待入库</span><span class="cms-nav-count">${pendingCount}</span></button></div>
   <div class="cms-nav-root ${['tasks','review'].includes(page)?'active':''}">
     <button ${page==='tasks'?'aria-current="page"':''} onclick="go('tasks')">${sidebarIcon('inbox')}<span>收素材</span><span class="cms-nav-count">${reviewCount}</span></button>
     <button class="cms-nav-toggle" aria-label="展开或收起待审核" aria-expanded="${collectionNavigationExpanded}" onclick="collectionNavigationExpanded=!collectionNavigationExpanded;render()">${collectionNavigationExpanded?'⌄':'›'}</button>
@@ -544,16 +558,17 @@ function storedAssetCard(item){
 }
 function reviewContent(){
   return heading('待审核','审核分派给我的外部上传素材')+`<div class="card"><table>
-    <thead><tr><th>素材名称</th><th>上传者</th><th>目标素材组</th><th>提交时间</th><th>操作</th></tr></thead>
+    <thead><tr><th>素材名称</th><th>上传者</th><th>目标素材组</th><th>提交时间</th><th>状态</th><th>操作</th></tr></thead>
     <tbody id="rows"></tbody></table></div>`;
 }
 function drawReviewRows(target){
-  const rows=items.map((item,index)=>({item,index})).filter(({item})=>canReview(item)&&item.name.includes(query));
+  const rows=items.map((item,index)=>({item,index})).filter(({item})=>isReviewRecord(item)&&item.name.includes(query));
   target.innerHTML=rows.length?rows.map(({item,index})=>`<tr>
     <td><strong>${esc(item.name)}</strong></td><td>${esc(item.by)}<div class="muted">${esc(item.from)}</div></td>
     <td>${esc(item.metadata?.group)}</td><td>${esc(item.uploadedAt)}</td>
-    <td>${item.aiState?.phase==='running'?'<span class="sub">AI 识别中</span>':`<button onclick="openExternalReview(${index})">去审核</button>`}</td>
-  </tr>`).join(''):'<tr><td colspan="5" class="empty">暂无待审核素材</td></tr>';
+    <td>${tag(externalReviewStatus(item))}</td>
+    <td>${item.status==='已退回'?'<span class="sub">等待重新上传</span>':item.aiState?.phase==='running'?'<span class="sub">AI 识别中</span>':`<button onclick="openExternalReview(${index})">去审核</button>`}</td>
+  </tr>`).join(''):'<tr><td colspan="6" class="empty">暂无待审核素材</td></tr>';
 }
 function openExternalReview(index){
   if(!canReview(items[index]))return toast('此素材当前不可审核');
@@ -798,9 +813,44 @@ function versionFamily(file){return file.versionFamily||null}
 function similarityCandidatePool(){return [...new Set([...items,...files,...pendingLocalFiles].map(file=>file.queueSource||file))]}
 function isPriorVersionCandidate(item,file){if(item===file||item===file.queueSource)return false;if(item.status==='已入库')return true;let pool=similarityCandidatePool(),current=pool.indexOf(file.queueSource||file),previous=pool.indexOf(item);return previous>=0&&(current<0||previous<current)}
 function findSimilarLibraryImage(file){if(!file.visualDescriptor||file.visualDescriptor.variance<30)return null;let ranked=similarityCandidatePool().filter(x=>isPriorVersionCandidate(x,file)&&x.visualDescriptor&&x.visualDescriptor.variance>=30).map(x=>({item:x,score:imageSimilarity(file.visualDescriptor,x.visualDescriptor)})).filter(x=>x.score>=versionSimilarityThreshold).sort((a,b)=>b.score-a.score);return ranked[0]||null}
-function refreshMaterialVersion(file,reserved=[]){ensureFileFields(file);if(!file.versionFamily){let match=findSimilarLibraryImage(file);if(match){file.versionFamily=match.item.versionFamily||('material-'+Date.now()+'-'+(++independentVersionSequence));match.item.versionFamily=file.versionFamily;file.versionMatch={name:match.item.name,score:match.score}}else file.versionFamily='new-'+Date.now()+'-'+(++independentVersionSequence)}if(!file.versionMatch&&!file.versionIndependent){let match=findSimilarLibraryImage(file);if(match&&match.item.versionFamily!==file.versionFamily){file.versionFamily=match.item.versionFamily||('material-'+Date.now()+'-'+(++independentVersionSequence));match.item.versionFamily=file.versionFamily;file.versionMatch={name:match.item.name,score:match.score}}}let history=[...similarityCandidatePool(),...reserved].filter(x=>isPriorVersionCandidate(x,file)&&versionFamily(x)===file.versionFamily&&parseMaterialVersion(x.metadata?.version)).sort((a,b)=>compareMaterialVersions(b.metadata.version,a.metadata.version));file.versionBase=history[0]?{name:history[0].name,version:history[0].metadata.version}:null;file.versionLevel=file.versionLevel||'major';if(file.versionMode!=='manual')file.metadata.version=file.versionBase?nextMaterialVersion(file.versionBase.version,file.versionLevel):'V1.0';return file.metadata.version}
+function archivedRelatedPath(item){
+  return [item.metadata?.group,item.name].filter(Boolean).join(' / ');
+}
+function applyNamedVersionLink(file){
+  const path=file.metadata.relatedAssetPath;
+  if(!path||file.versionIndependent||file.namedVersionBase)return;
+  const target=items.find(item=>item.status==='已入库'&&archivedRelatedPath(item)===path);
+  if(!target&&!referenceRelatedMaterials.includes(path))return;
+  file.versionFamily=target?(target.versionFamily||'material-'+Date.now()+'-'+(++independentVersionSequence)):'reference:'+path;
+  if(target)target.versionFamily=file.versionFamily;
+  file.namedVersionBase={
+    name:target?.name||path.split(' / ').at(-1),
+    version:parseMaterialVersion(target?.metadata?.version)?target.metadata.version:'V1.0',
+  };
+  file.versionMatch=null;
+}
+function refreshMaterialVersion(file,reserved=[]){ensureFileFields(file);applyNamedVersionLink(file);if(!file.versionFamily){let match=findSimilarLibraryImage(file);if(match){file.versionFamily=match.item.versionFamily||('material-'+Date.now()+'-'+(++independentVersionSequence));match.item.versionFamily=file.versionFamily;file.versionMatch={name:match.item.name,score:match.score}}else file.versionFamily='new-'+Date.now()+'-'+(++independentVersionSequence)}if(!file.namedVersionBase&&!file.versionMatch&&!file.versionIndependent){let match=findSimilarLibraryImage(file);if(match&&match.item.versionFamily!==file.versionFamily){file.versionFamily=match.item.versionFamily||('material-'+Date.now()+'-'+(++independentVersionSequence));match.item.versionFamily=file.versionFamily;file.versionMatch={name:match.item.name,score:match.score}}}let history=[...similarityCandidatePool(),...reserved].filter(x=>isPriorVersionCandidate(x,file)&&versionFamily(x)===file.versionFamily&&parseMaterialVersion(x.metadata?.version)).sort((a,b)=>compareMaterialVersions(b.metadata.version,a.metadata.version));file.versionBase=history[0]?{name:history[0].name,version:history[0].metadata.version}:file.versionIndependent?null:file.namedVersionBase||null;file.versionLevel=file.versionLevel||'major';if(file.versionMode!=='manual')file.metadata.version=file.versionBase?nextMaterialVersion(file.versionBase.version,file.versionLevel):'V1.0';return file.metadata.version}
 function versionControl(){return `<div id="version-panel" class="version-panel"></div><div id="version-error" class="version-error" role="alert"></div>`}
-function paintVersionPanel(){let panel=$('#version-panel');if(!panel)return;let f=storageTagFile();if(!f){panel.innerHTML='';return}let base=f.versionBase;panel.innerHTML=f.visualPending?'<span class="ai-spinner" aria-hidden="true"></span> 正在查找相似图片…':base?`<div class="version-linked">已关联历史素材：${esc(base.name)}<br>当前最新版本：<b>${esc(base.version)}</b>${f.versionMatch?`<br>相似度：${Math.round(f.versionMatch.score*100)}%（原型本地图片比对）`:''}</div>`:f.visualAnalysisFailed?'暂未能读取图片特征，可手动填写版本号；默认 V1.0。':f.versionIndependent?'已作为独立素材，默认 V1.0。':'未找到可关联的相似图片，默认 V1.0。';let input=$('#version');if(input){input.classList?.remove('ai-field-error');input.removeAttribute?.('aria-invalid')}if($('#version-error'))$('#version-error').textContent=''}
+function paintVersionPanel(){
+  const panel=$('#version-panel');
+  if(!panel)return;
+  const file=storageTagFile();
+  if(!file){panel.innerHTML='';return}
+  const base=file.versionBase;
+  if(base&&file.namedVersionBase&&!file.versionIndependent){
+    panel.innerHTML=`<div class="version-linked">已关联历史素材：${esc(file.namedVersionBase.name)}<br>当前最新版本：<b>${esc(base.version)}</b></div>`;
+  }else if(file.visualPending){
+    panel.innerHTML='<span class="ai-spinner" aria-hidden="true"></span> 正在查找相似图片…';
+  }else if(base){
+    panel.innerHTML=`系统按相似度已关联历史素材：${esc(base.name)}（${esc(base.version)}）`;
+  }else{
+    panel.innerHTML=file.visualAnalysisFailed?'暂未能读取图片特征，可手动填写版本号；默认 V1.0。':file.versionIndependent?'已作为独立素材，默认 V1.0。':'未找到可关联的相似图片，默认 V1.0。';
+  }
+  const input=$('#version');
+  input?.classList?.remove('ai-field-error');
+  input?.removeAttribute?.('aria-invalid');
+  if($('#version-error'))$('#version-error').textContent='';
+}
 function changeVersionLevel(level){if(!['major','minor','patch'].includes(level)||!activeUploadFile)return;captureUploadDraft();let f=activeUploadFile;f.versionLevel=level;f.versionMode='auto';f.editedFields=(f.editedFields||[]).filter(id=>id!=='version');refreshMaterialVersion(f);uploadDraft.version=f.metadata.version;$('#version').value=f.metadata.version;paintVersionPanel()}
 function makeIndependentVersion(){let f=activeUploadFile;if(!f)return;captureUploadDraft();f.versionFamily='independent-'+Date.now()+'-'+(++independentVersionSequence);f.versionIndependent=true;f.versionMatch=null;f.versionMode='auto';f.versionLevel='major';refreshMaterialVersion(f);uploadDraft.version=f.metadata.version;$('#version').value=f.metadata.version;paintVersionPanel()}
 function validateVersionBatch(chosen){let reserved=[];for(let f of chosen){refreshMaterialVersion(f,reserved);let version=String(f.metadata.version||'').trim().toUpperCase().replace(/^V?/,'V'),error='';if(!parseMaterialVersion(version))error='请输入正确的版本号，例如 V1.0、V2.1 或 V2.1.1';else if(f.versionBase&&compareMaterialVersions(version,f.versionBase.version)<=0)error='新版本必须高于当前最新版本 '+f.versionBase.version;if(error){switchUploadFile(files.indexOf(f));$('#version').classList?.add('ai-field-error');$('#version').setAttribute?.('aria-invalid','true');$('#version-error').textContent=error;toast(error);return false}f.metadata.version=version;reserved.push({...f,status:'已入库'});}if(activeUploadFile){uploadDraft.version=activeUploadFile.metadata.version;$('#version').value=uploadDraft.version;paintVersionPanel()}return true}
@@ -958,6 +1008,8 @@ let pendingLocalFiles=[];
 let namingToQueue=false;
 let pendingRetryItem=null;
 function addFiles(list,{toQueue=false,retryItem=null}={}){
+  if(page==='agency'&&agencyResubmission&&(list.length!==1||files.length))return toast('请选择一个替换文件');
+  if(page==='agency'&&agencyResubmission&&list[0]?.size===0)return toast('文件为空，请选择有效文件');
   const queueUpload=toQueue&&page!=='agency';
   const valid=[];
   let failed=0;
@@ -1089,10 +1141,16 @@ function namingTreeControl(id,placeholder,chooseGroups,paths,groupPaths=referenc
   </details>`;
 }
 function namingTreeField(id,label,placeholder,chooseGroups){
-  const paths=chooseGroups?referenceMaterialGroups:[...referenceMaterialGroups,...referenceRelatedMaterials];
+  const groups=new Set(referenceMaterialGroups);
+  const assets=chooseGroups?[]:[...referenceRelatedMaterials,...items.filter(item=>item.status==='已入库').map(archivedRelatedPath)];
+  for(const path of assets){
+    const segments=path.split(' / ');
+    for(let i=1;i<segments.length;i++)groups.add(segments.slice(0,i).join(' / '));
+  }
+  const paths=[...new Set([...groups,...assets])];
   return `<div class="naming-row">
     <span id="${id}-label" class="naming-tree-label">${label}${chooseGroups?'<span class="required"> *</span>':''}</span>
-    ${namingTreeControl(id,placeholder,chooseGroups,paths)}
+    ${namingTreeControl(id,placeholder,chooseGroups,paths,[...groups])}
   </div>`;
 }
 function uploadGroupPicker(){
@@ -1188,7 +1246,7 @@ function confirmMaterialNames(){
     return name&&extension&&!name.toLowerCase().endsWith(extension.toLowerCase())?name+extension:name;
   });
   const nameKey=name=>name.trim().normalize('NFC').toLowerCase();
-  const existing=new Set([...items,...files].filter(file=>!file.uploadError).map(file=>nameKey(file.name)));
+  const existing=new Set([...items,...files].filter(file=>!file.uploadError&&(page!=='agency'||file!==agencyResubmission)).map(file=>nameKey(file.name)));
   const counts=new Map();
   for(const name of names){
     const key=nameKey(name);
@@ -1232,6 +1290,7 @@ function confirmMaterialNames(){
     batch.forEach((file,index)=>{
       ensureFileFields(file);
       Object.assign(file.metadata,routes[index]);
+      applyNamedVersionLink(file);
     });
   }
   batch.forEach((file,index)=>{file.name=names[index]});
@@ -1300,6 +1359,8 @@ function submitUpload(ext){
     });
     return;
   }
+  const returned=agencyResubmission;
+  if(returned&&(!canResubmitAgencyAsset(returned)||files.length!==1))return toast('请重新选择要替换的素材');
   const submissionNote=agencySubmissionNote.trim();
   for(const file of files){
     const version=String(file.metadata.version??'').trim();
@@ -1312,11 +1373,15 @@ function submitUpload(ext){
       aiState:{phase:'idle',token:0,missing:[]},
       metadata:{...file.metadata,group:agencyTargetGroup(),version:version?'V'+version.replace(/^v/i,''):'V1.0'},
     };
-    items.push(submittedFile);
+    if(returned){
+      submittedFile.reviewHistory=returned.reviewHistory;
+      items[items.indexOf(returned)]=submittedFile;
+    }else items.push(submittedFile);
     beginVisualVersionAnalysis(submittedFile,false);
     startFileRecognition(submittedFile);
   }
   files=[];
+  agencyResubmission=null;
   agencySubmissionNote='';
   submitted=true;
   render();
@@ -1330,7 +1395,7 @@ function collectionStatus(task){
   return '收集中';
 }
 function tasks(){const status=collectionStatus(taskMade||null);return heading('素材收集任务','发起收集，邀请 Agency 在专属链接中提交素材',`<button class="primary" onclick="taskModal()">＋ 新建收集任务</button>`)+`<div class="notice">Agency 访客仅可访问对应任务的上传页面，不能进入或浏览内部素材库。此处可通过“预览访客页”评审该流程。</div><div class="card"><table><thead><tr><th>主题</th><th>合作组织</th><th>目标素材组</th><th>状态</th><th>操作</th></tr></thead><tbody><tr><td><b>${esc(taskMade?.name||'2026 春日焕新 · 品牌素材收集')}</b><p class="muted">发起人 林晓 · 截止 ${esc(taskMade?.date||'2026-11-30')}</p></td><td>${esc(taskMade?.agency||'青禾创意')}</td><td>${esc(agencyTargetGroup())}</td><td>${status==='收集失败'?'<span class="tag bad">收集失败</span>':tag(status)}</td><td><button onclick="copyLink()">复制演示链接</button><button onclick="previewAgency()">预览访客页 →</button></td></tr></tbody></table></div>`}
-let collectionPassword='',collectionNotify='link',agencyUnlocked=false,agencySubmissionNote='';
+let collectionPassword='',collectionNotify='link',agencyUnlocked=false,agencySubmissionNote='',agencyResubmission=null;
 function agencyTargetGroup(){return taskMade?.group||'素材组1-子素材组1.1-子素材组1.1.1'}
 function newCollectionPassword(){let alphabet='abcdefghjkmnpqrstuvwxyz23456789';return Array.from({length:4},()=>alphabet[Math.floor(Math.random()*alphabet.length)]).join('')}
 function refreshCollectionPassword(){let previous=collectionPassword;do{collectionPassword=newCollectionPassword()}while(collectionPassword===previous);if($('#task-password'))$('#task-password').value=collectionPassword}
@@ -1340,13 +1405,38 @@ function closeModal(){$('#overlay').innerHTML='';pendingSimilarityPrompt=null}
 function createTask(){let name=$('#tn').value.trim(),agencyName=$('#ta').value.trim(),period=$('#td').value;if(!name||!period||!$('#tg').value)return toast('请完善任务必填信息');if(name.length>50)return toast('主题最多50个字');if(collectionNotify==='members'&&!$('#task-members').value.trim())return toast('请填写需要通知的指定成员');let days=Number(period),expiresAt=days?Date.now()+days*86400000:null;taskMade={name,agency:agencyName,reviewer:currentReviewer,group:$('#tg').value,date:expiresAt?new Date(expiresAt).toLocaleDateString('sv-SE',{timeZone:'Asia/Shanghai'}):'永久有效',expiryDays:days,expiresAt,note:$('#task-note').value,password:collectionPassword,notify:collectionNotify,members:collectionNotify==='members'?$('#task-members').value.trim():''};agencyUnlocked=false;render();showCollectionLink()}
 function showCollectionLink(){let link=location.href.split('#')[0]+'#agency';$('#overlay').innerHTML=`<div class="modalbg"><div class="modal collection-modal" role="dialog" aria-modal="true" aria-labelledby="collection-result-title"><h2 id="collection-result-title">任务已生成</h2><p class="sub">${esc(taskMade.name)}</p>${field('收集链接',`<input readonly value="${esc(link)}">`)}${field('访问密码',`<input readonly value="${esc(taskMade.password)}">`)}<p class="sub">有效期：${taskMade.expiryDays?taskMade.expiryDays+'天有效':'永久有效'}</p><p class="sub">${taskMade.notify==='members'?'通知指定成员：'+esc(taskMade.members)+'（演示记录）':'复制链接分享'}</p><div class="foot"><button onclick="closeModal();previewAgency()">预览访客页</button><button class="primary" onclick="copyLink()">复制链接</button><button onclick="closeModal()">确定</button></div></div></div>`}
 function copyLink(){let u=location.href.split('#')[0]+'#agency';if(!navigator.clipboard?.writeText)return toast('请使用“预览访客页”打开演示');navigator.clipboard.writeText(u).then(()=>toast('演示链接已复制（非真实授权链接）')).catch(()=>toast('请使用“预览访客页”打开演示'))}
-function previewAgency(){files=[];submitted=false;agencyUnlocked=false;agencySubmissionNote='';go('agency')}
+function previewAgency(){files=[];agencyResubmission=null;submitted=false;agencyUnlocked=false;agencySubmissionNote='';go('agency')}
 function unlockAgency(){if(taskMade.expiresAt&&Date.now()>taskMade.expiresAt)return toast('该收集任务已过期');if($('#agency-password').value.trim()!==taskMade.password)return toast('访问密码不正确，请重试');agencyUnlocked=true;render()}
 
+function isCurrentAgencyAsset(item){
+  return item?.externalSubmission&&item.collectionTask===(taskMade||null)&&item.by==='陈悦';
+}
+function canResubmitAgencyAsset(item){
+  return page==='agency'&&items.includes(item)&&isCurrentAgencyAsset(item)&&item.status==='已退回'
+    &&(!taskMade?.password||agencyUnlocked)&&(!taskMade?.expiresAt||Date.now()<=taskMade.expiresAt);
+}
+function beginAgencyResubmission(index){
+  const item=items[index];
+  if(!canResubmitAgencyAsset(item))return;
+  if(files.length||pendingLocalFiles.length)return toast('请先完成当前上传');
+  agencyResubmission=item;
+  submitted=false;
+  render();
+  $('#picker')?.click?.();
+}
+function cancelAgencyResubmission(){
+  agencyResubmission=null;
+  files=[];
+  activeUploadFile=null;
+  displayedUploadFile=null;
+  agencySubmissionNote='';
+  render();
+}
 function agencyReviewResults(){
-  const results=items.filter(item=>item.externalSubmission&&item.collectionTask===(taskMade||null)&&item.by==='陈悦');
+  const results=items.filter(isCurrentAgencyAsset);
   if(!results.length)return '';
-  return `<div class="card"><h2>提交状态</h2><ul>${results.map(item=>`<li><strong>${esc(item.name)}</strong> · ${item.status==='待人工审核'?'待审核':esc(item.status)}${item.status==='已退回'?`<p>退回原因：${esc(item.reason)}</p>`:''}</li>`).join('')}</ul></div>`;
+  return `<div class="card"><h2>提交状态</h2><ul>${results.map(item=>`<li><strong>${esc(item.name)}</strong> · ${esc(externalReviewStatus(item))}
+    ${item.status==='已退回'?`<p>退回原因：${esc(item.reason)}</p><button type="button" onclick="beginAgencyResubmission(${items.indexOf(item)})">重新上传</button>`:''}</li>`).join('')}</ul></div>`;
 }
 function agency(){if(taskMade?.expiresAt&&Date.now()>taskMade.expiresAt)return `<div class="card"><h2>收集任务已过期</h2><p class="sub">请联系发起人更新有效期。</p><button onclick="go('tasks')">返回内部端（演示）</button></div>`;if(taskMade?.password&&!agencyUnlocked)return `<div class="card agency-password-card"><h1>${esc(taskMade.name)}</h1><p class="sub">请输入访问密码，进入素材上传页面。</p>${field('访问密码',`<input id="agency-password" placeholder="请输入访问密码" autocomplete="off" onkeydown="if(event.key==='Enter')unlockAgency()">`,true)}<div class="foot"><button onclick="go('tasks')">返回内部端（演示）</button><button class="primary" onclick="unlockAgency()">确定</button></div></div>`;if(submitted)return `<div class="card" style="text-align:center;padding:70px"><div style="font-size:45px;color:#168d78">✓</div><h1>素材提交成功</h1><p class="sub">已提交至收集任务，等待发起人审核。审核通过后归档至指定素材组。</p><button onclick="submitted=false;render()">继续提交</button> <button onclick="go('tasks')">返回内部端（演示）</button></div>`+agencyReviewResults();return heading('访客上传',`发起人 林晓　｜　合作方 ${esc(taskMade?.agency||'青禾创意')}`)+`
   <div class="card agency-task-fields">
@@ -1356,7 +1446,7 @@ function agency(){if(taskMade?.expiresAt&&Date.now()>taskMade.expiresAt)return `
     <div class="field"><label for="agency-target-group">目标素材组</label>
       <input id="agency-target-group" value="${esc(agencyTargetGroup())}" readonly>
     </div>
-  </div><div class="notice">访客专属上传入口 · 仅能向当前任务提交素材。请选择使用渠道。素材标签、简介、类型和产品标签会在提交后由系统识别。</div>${agencyReviewResults()}<div class="card"><h2>上传素材</h2><p class="sub">支持各类格式，单文件 ≤ 500 MB（原型设定）；不支持的格式转纯人工审核</p><input id="picker" type="file" multiple onchange="addFiles(this.files)">${files.length?`<div class="agency-file-list">${files.map((f,i)=>`<button type="button" class="upload-file-link ${f===activeUploadFile?'active':''}" aria-pressed="${f===activeUploadFile}" onclick="switchUploadFile(${i})">${f.previewUrl&&['JPG','JPEG','PNG','GIF','WEBP'].includes(f.type)?`<img class="agency-file-thumbnail" src="${esc(f.previewUrl)}" alt="">`:`<span class="agency-file-thumbnail agency-file-placeholder" aria-hidden="true">${esc(f.type||'文件')}</span>`}<span>${esc(f.name)}</span></button>`).join('')}</div>`:'<p>尚未选择文件</p>'}</div><div class="card">${field('使用渠道（OG）',opts(['请选择使用渠道','官微','官抖','小红书','电商'],'channel'),true)}
+  </div><div class="notice">访客专属上传入口 · 仅能向当前任务提交素材。请选择使用渠道。素材标签、简介、类型和产品标签会在提交后由系统识别。</div>${agencyReviewResults()}<div class="card"><h2>上传素材</h2><p class="sub">支持各类格式，单文件 ≤ 500 MB（原型设定）；不支持的格式转纯人工审核</p>${agencyResubmission?`<p class="sub">正在重新上传「${esc(agencyResubmission.name)}」 <button type="button" onclick="cancelAgencyResubmission()">取消重新上传</button></p>`:''}<input id="picker" type="file" ${agencyResubmission?'':'multiple'} onchange="addFiles(this.files)">${files.length?`<div class="agency-file-list">${files.map((f,i)=>`<button type="button" class="upload-file-link ${f===activeUploadFile?'active':''}" aria-pressed="${f===activeUploadFile}" onclick="switchUploadFile(${i})">${f.previewUrl&&['JPG','JPEG','PNG','GIF','WEBP'].includes(f.type)?`<img class="agency-file-thumbnail" src="${esc(f.previewUrl)}" alt="">`:`<span class="agency-file-thumbnail agency-file-placeholder" aria-hidden="true">${esc(f.type||'文件')}</span>`}<span>${esc(f.name)}</span></button>`).join('')}</div>`:'<p>尚未选择文件</p>'}</div><div class="card">${field('使用渠道（OG）',opts(['请选择使用渠道','官微','官抖','小红书','电商'],'channel'),true)}
   ${field('版本','<input id="version" placeholder="选填，例如 V1.0">')}
   <div class="field"><label for="agency-submission-note">备注</label>
     <textarea id="agency-submission-note" rows="3" maxlength="500" placeholder="例如：第二张是替换封面的新版" oninput="agencySubmissionNote=this.value">${esc(agencySubmissionNote)}</textarea>
@@ -1916,7 +2006,7 @@ function reviewAction(pass,noteId='reviewnote'){
     action:pass?'审核通过':'已退回',reviewer:currentReviewer,reason,at:new Date().toISOString(),
     name:item.name,version:item.metadata?.version,group:item.metadata?.group,uploader:item.by,
   }];
-  const remaining=items.some(canReview);
+  const remaining=items.some(isReviewRecord);
   go(remaining?'review':'queue');
   toast(pass?'审核通过，已归档至素材库':'已退回，上传者可查看原因');
 }
