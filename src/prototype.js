@@ -144,8 +144,10 @@ function queueStatus(file,index){
     tone='error';
     detail=file.uploadError;
   }else if(phase==='timeout'){
-    return `<div class="pending-status"><button type="button" class="pending-status-label error pending-ai-timeout"
-      aria-haspopup="dialog" onclick="showQueueRecognitionTimeout(${index})">AI 处理超时</button></div>`;
+    return `<div class="pending-status">
+      <span class="pending-status-label error">AI 处理超时</span>
+      <small>文件已上传，可<button type="button" class="pending-ai-retry" onclick="retryQueueRecognition(${index})">重新识别</button>，或在素材入库页手动填写</small>
+    </div>`;
   }else if(phase==='failed'){
     label='AI 识别失败';
     tone='error';
@@ -170,19 +172,11 @@ function setQueueChecked(index,checked){let x=items[index];if(!x||!isPendingQueu
 function setAllQueueChecked(checked){for(let x of pendingQueueItems()){if(checked)queueSelection.add(x);else queueSelection.delete(x)}render()}
 function deleteQueueItem(index){let x=items[index];if(!x||!isPendingQueueItem(x))return;queueSelection.delete(x);items.splice(index,1);render()}
 function deleteQueueSelection(){let chosen=pendingQueueItems().filter(x=>queueSelection.has(x));items=items.filter(x=>!chosen.includes(x));chosen.forEach(x=>queueSelection.delete(x));render()}
-function showQueueRecognitionTimeout(index){
-  const item=items[index];
-  if(!item||!isPendingQueueItem(item)||item.aiState?.phase!=='timeout')return;
-  showStoredActionDialog('AI 处理超时',`<p>「${esc(item.name)}」已上传，AI 暂未完成识别。你可以重新识别，或在素材入库页手动填写。</p>`,
-    `<button type="button" onclick="retryQueueRecognition(${index})">重新识别</button>
-    <button type="button" class="primary" onclick="closeModal()">确定</button>`);
-}
 function retryQueueRecognition(index){
   const item=items[index];
   if(!item||!isPendingQueueItem(item)||item.aiState?.phase!=='timeout')return;
   item.aiState.phase='idle';
   startFileRecognition(item);
-  closeModal();
   drawQueueRows();
 }
 function retryQueueUpload(index){
@@ -731,7 +725,7 @@ function startFileRecognition(f){
     if(page==='queue')drawQueueRows();
   },queueRecognitionTimeoutMs);
 
-  const demoTimeout=queued&&token===1&&[f.originalName,f.name].some(name=>/^AI\s*处理超时(?:\.[^.]+)?$/i.test(name?.trim()||''));
+  const demoTimeout=queued&&token===1&&[f.originalName,f.name].some(name=>/^AI\s*(?:处理|识别)超时(?:\.[^.]+)?$/i.test(name?.trim()||''));
   if(demoTimeout)return;
   setTimeout(()=>{
     const finish=()=>finishUploadAI(token,f);
@@ -917,10 +911,9 @@ function namingRoutingFields(index){
   return namingTreeField('material-path-'+index,'素材存放路径','请选择素材存放路径',true)
     +namingTreeField('related-material-'+index,'需关联素材','无需关联',false);
 }
-function materialNameInput(index,initialName){
-  const batch=initialName!==undefined;
+function materialNameInput(index,initialName,batch=false){
   return `<input id="material-name-${index}" type="text" maxlength="150" placeholder="${batch?'请输入素材名称':'请输入素材名字'}"
-    ${batch?`aria-label="第 ${index+1} 个文件的素材名称" value="${esc(initialName)}"`:''} aria-describedby="material-name-error-${index}"
+    ${batch?`aria-label="第 ${index+1} 个文件的素材名称"`:''} value="${esc(initialName)}" aria-describedby="material-name-error-${index}"
     autocomplete="off" oninput="clearMaterialNameError(${index})" onkeydown="if(event.key==='Enter'){event.preventDefault();confirmMaterialNames()}">`;
 }
 function materialNameError(index){
@@ -941,7 +934,7 @@ function batchMaterialNaming(files,toQueue){
           :`<span class="batch-naming-file-type" aria-hidden="true">${esc(file.type||'文件')}</span>`;
         return `<tr>
           <th scope="row"><div class="batch-naming-source">${thumbnail}<span>${esc(file.originalName)}</span></div></th>
-          <td><div class="batch-naming-input">${materialNameInput(index,initialName)}${extension?`<span>${esc(extension)}</span>`:''}</div>${materialNameError(index)}</td>
+          <td><div class="batch-naming-input">${materialNameInput(index,initialName,true)}${extension?`<span>${esc(extension)}</span>`:''}</div>${materialNameError(index)}</td>
           ${toQueue?`<td>${namingTreeField('material-path-'+index,'素材存放路径','请选择素材存放路径',true)}</td>
             <td>${namingTreeField('related-material-'+index,'需关联素材','无需关联',false)}</td>`:''}
         </tr>`;
@@ -955,7 +948,7 @@ function showMaterialNaming(valid,toQueue=false,retryItem=null){
   pendingLocalFiles=valid;
   const batch=valid.length>1;
   const body=batch?batchMaterialNaming(valid,toQueue):`<div class="naming-list"><div class="naming-item">
-    <div class="naming-row"><label for="material-name-0">名字<span class="required"> *</span></label>${materialNameInput(0)}</div>
+    <div class="naming-row"><label for="material-name-0">名字<span class="required"> *</span></label>${materialNameInput(0,valid[0].originalName)}</div>
     ${materialNameError(0)}${toQueue?namingRoutingFields(0):''}
   </div></div>`;
   $('#overlay').innerHTML=`<div class="modalbg"><div class="modal naming-modal ${toQueue?'naming-with-routing':''} ${batch?'batch-naming-modal':''}" role="dialog" aria-modal="true" aria-labelledby="naming-title">
