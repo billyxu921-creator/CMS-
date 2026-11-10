@@ -44,6 +44,8 @@ get('#material-path-0').value='';
 run('confirmMaterialNames()');
 assert.equal(run('items.length'),0);
 assert(get('#overlay').innerHTML.includes('素材1.2.1.1'));
+assert(get('#overlay').innerHTML.includes('aria-label="展开或收起 子素材组1.1.1"'));
+assert(get('#overlay').innerHTML.includes('data-path="根素材组-1 / 子素材组1.1 / 子素材组1.1.1 / 素材1.1.1.1"'));
 assert(get('#overlay').innerHTML.includes('class="naming-tree-branch" hidden'));
 const namingBranch={hidden:true};
 const namingToggle={parentElement:{nextElementSibling:namingBranch},setAttribute(name,value){this[name]=value}};
