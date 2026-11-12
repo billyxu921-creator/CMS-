@@ -125,16 +125,16 @@ function clientHeaderActions(){
   </div>`;
 }
 
-function render(){let ext=page==='agency';$('#app').innerHTML=`<div class="client-shell"><header class="client-header"><div class="logo"><span class="app-grid" aria-hidden="true">⠿</span><span class="client-brand" aria-hidden="true">U</span><span>素材库</span>${ext?'<small>素材协作上传</small>':''}</div>${!ext&&['queue','library','archived','review','group'].includes(page)?searchBar():''}<div class="client-account">${ext?'':clientHeaderActions()}<span class="badge">${ext?'A':'林'}</span><span>${ext?'青禾创意 · 访客':'林晓 · 内容运营'}</span></div></header>${ext?`<div class="external">${agency()}</div>`:`<div class="layout client-layout"><aside class="client-sidebar">${clientSidebar()}</aside><main class="client-main" data-view="${page}"><div class="crumb">${page==='detail'?'全部素材':'全部'} <span aria-hidden="true">›</span> ${({'queue':'待入库',upload:'上传素材',tasks:'收集任务',review:'待审核',trash:'回收站',library:'全部素材',archived:'已入库',group:esc(activeMaterialGroup),detail:esc(items[selected]?.name||'素材详情'),guide:'流程说明'})[page]}</div>${content()}</main></div>`}<div class="client-demo-note">演示环境：所有文件、识别、查重、审核及权限均为本地模拟；刷新后恢复初始演示数据。</div></div>`}
+function render(){let ext=page==='agency';$('#app').innerHTML=`<div class="client-shell"><header class="client-header"><div class="logo"><span class="app-grid" aria-hidden="true">⠿</span><span class="client-brand" aria-hidden="true">U</span><span>素材库</span>${ext?'<small>素材协作上传</small>':''}</div>${!ext&&['queue','library','review','group'].includes(page)?searchBar():''}<div class="client-account">${ext?'':clientHeaderActions()}<span class="badge">${ext?'A':'林'}</span><span>${ext?'青禾创意 · 访客':'林晓 · 内容运营'}</span></div></header>${ext?`<div class="external">${agency()}</div>`:`<div class="layout client-layout"><aside class="client-sidebar">${clientSidebar()}</aside><main class="client-main" data-view="${page==='review'?'queue':page}"><div class="crumb">${page==='detail'?'全部素材':'全部'} <span aria-hidden="true">›</span> ${({'queue':'待入库',upload:'上传素材',tasks:'收集任务',review:'待入库',trash:'回收站',library:'全部素材',group:esc(activeMaterialGroup),detail:esc(items[selected]?.name||'素材详情'),guide:'流程说明'})[page]}</div>${content()}</main></div>`}<div class="client-demo-note">演示环境：所有文件、识别、查重、审核及权限均为本地模拟；刷新后恢复初始演示数据。</div></div>`}
 
 function sidebarIcon(name){let paths={trash:'<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',layers:'<path d="m3 7 9-5 9 5-9 5-9-5Zm0 5 9 5 9-5M3 17l9 5 9-5"/>',inbox:'<path d="M5 6 7 3h10l2 3M4 6h16v15H4zM9 10h6"/>',favorite:'<path d="m12 3 3 3-3 3-3-3 3-3ZM2 15l6 2h7m-13 2 7 3 12-6-4-2-5 2M5 12l6 1 3 3"/>',person:'<circle cx="12" cy="7" r="4"/><path d="M4 22v-3a8 8 0 0 1 16 0v3"/>',folder:'<path d="M2 5h7l2 3h11v13H2z"/>',group:'<path d="M2 4h8l2 3h10v14H2z"/><circle cx="9" cy="12" r="2"/><path d="M5 19v-1a4 4 0 0 1 8 0v1m2-7a2 2 0 0 1 1 4m0 0a4 4 0 0 1 3 3"/>'};return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]||paths.folder}</svg>`}
 let sidebarAssetsExpanded=true,sidebarContentExpanded=true;
-function clientSidebar(){let approvedCount=items.filter(x=>x.status==='已入库').length,pendingCount=items.filter(item=>isPendingQueueItem(item)&&!item.uploadError).length,reviewCount=items.filter(isReviewRecord).length;return `<nav class="reference-nav cms-nav"><div class="cms-nav-root ${['library','archived','queue'].includes(page)?'active':''}"><button onclick="go('library')">${sidebarIcon('layers')}<span>全部素材</span><span class="cms-nav-count">${approvedCount}</span></button><button class="cms-nav-toggle" aria-label="展开或收起全部素材" aria-expanded="${sidebarAssetsExpanded}" onclick="sidebarAssetsExpanded=!sidebarAssetsExpanded;render()">${sidebarAssetsExpanded?'⌃':'⌄'}</button></div><div class="cms-nav-children" ${sidebarAssetsExpanded?'':'hidden'}><button class="${page==='archived'?'active':''}" onclick="go('archived')"><span>已入库</span><span class="cms-nav-count">${approvedCount}</span></button><button class="${page==='queue'?'active':''}" onclick="go('queue')"><span>待入库</span><span class="cms-nav-count">${pendingCount}</span></button></div>
-  <div class="cms-nav-root ${['tasks','review'].includes(page)?'active':''}">
+function clientSidebar(){let approvedCount=items.filter(x=>x.status==='已入库').length,pendingCount=items.filter(item=>isPendingQueueItem(item)&&!item.uploadError).length,reviewCount=items.filter(isReviewRecord).length;return `<nav class="reference-nav cms-nav"><div class="cms-nav-root ${['library','queue','review'].includes(page)?'active':''}"><button onclick="go('library')">${sidebarIcon('layers')}<span>全部素材</span><span class="cms-nav-count">${approvedCount}</span></button><button class="cms-nav-toggle" aria-label="展开或收起全部素材" aria-expanded="${sidebarAssetsExpanded}" onclick="sidebarAssetsExpanded=!sidebarAssetsExpanded;render()">${sidebarAssetsExpanded?'⌃':'⌄'}</button></div><div class="cms-nav-children" ${sidebarAssetsExpanded?'':'hidden'}><button class="${['queue','review'].includes(page)?'active':''}" onclick="go('queue')"><span>待入库</span><span class="cms-nav-count">${pendingCount+reviewCount}</span></button></div>
+  <div class="cms-nav-root ${page==='tasks'?'active':''}">
     <button ${page==='tasks'?'aria-current="page"':''} onclick="go('tasks')">${sidebarIcon('inbox')}<span>收素材</span><span class="cms-nav-count">${reviewCount}</span></button>
-    <button class="cms-nav-toggle" aria-label="展开或收起待审核" aria-expanded="${collectionNavigationExpanded}" onclick="collectionNavigationExpanded=!collectionNavigationExpanded;render()">${collectionNavigationExpanded?'⌄':'›'}</button>
+
   </div>
-  ${collectionNavigationExpanded?`<div class="cms-nav-children"><button class="${page==='review'?'active':''}" onclick="go('review')"><span>待审核</span><span class="cms-nav-count">${reviewCount}</span></button></div>`:''}
+
   <div class="cms-nav-root ${page==='trash'?'active':''}">
     <button onclick="go('trash')">${sidebarIcon('trash')}<span>回收站</span></button>
   </div>
@@ -159,7 +159,7 @@ function openLocalSelection(action,retryItem=null){let picker=document.createEle
 function chooseAddAction(action){closeAddMenu();if(action==='file'||action==='folder'){openLocalSelection(action);return}let title=({baidu:'百度网盘导入',muse:'MUSE导入',text:'新建纯文本',library:'从素材库添加',group:'新建子素材组'})[action];let form='';if(action==='baidu'||action==='muse'){form=`<p class="sub">演示入口：仅模拟导入流程，不连接外部服务。</p>${field(action==='baidu'?'网盘分享链接':'MUSE 素材链接 / 编号','<input id="import-reference" placeholder="请输入链接或编号">',true)}${field('素材名称','<input id="import-name" placeholder="请输入导入后的素材名称">',true)}`}else if(action==='text'){form=field('素材名称','<input id="text-name" placeholder="请输入纯文本名称">',true)+field('文本内容','<textarea id="text-content" rows="7" placeholder="请输入文本内容"></textarea>',true)}else if(action==='group'){form=field('所属素材组','<input value="CRM · 品牌内容团队" readonly>')+field('子素材组名称','<input id="subgroup-name" placeholder="请输入子素材组名称">',true)}else{form=`<p class="sub">选择已有素材，模拟添加到当前素材组。</p><div class="existing-library-list">${items.length?items.map((item,i)=>`<label><input class="check" type="checkbox" data-library-index="${i}">${esc(item.name)}</label>`).join(''):'<div class="empty">素材库暂无素材</div>'}</div>`}$('#overlay').innerHTML=`<div class="modalbg"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="add-action-title"><h2 id="add-action-title">${title}</h2><div style="margin-top:24px">${form}</div><div class="foot"><button onclick="closeModal()">取消</button><button class="primary" onclick="confirmAddAction('${action}')">确定</button></div></div></div>`}
 function confirmAddAction(action){if(action==='group'){let name=$('#subgroup-name').value.trim();if(!name)return toast('请填写子素材组名称');materialGroups.push(name);closeModal();render();toast('子素材组已创建');return}if(action==='text'){let name=$('#text-name').value.trim(),content=$('#text-content').value;if(!name||!content.trim())return toast('请填写名称与文本内容');if(!name.toLowerCase().endsWith('.txt'))name+='.txt';closeModal();files=[];go('upload');addFiles([new File([content],name,{type:'text/plain'})]);return}if(action==='library'){let chosen=[...(document.querySelectorAll?.('[data-library-index]:checked')||[])].map(n=>items[Number(n.dataset.libraryIndex)]).filter(Boolean);if(!chosen.length)return toast('请选择素材');closeModal();toast('已模拟添加 '+chosen.length+' 份已有素材');return}let ref=$('#import-reference').value.trim(),name=$('#import-name').value.trim();if(!ref||!name)return toast('请填写来源与素材名称');if(action==='baidu'&&!/^https:\/\/pan\.baidu\.com\//i.test(ref))return toast('请输入有效的百度网盘分享链接');if(!/\.[A-Za-z0-9]+$/.test(name))name+=action==='baidu'?'.pdf':'.jpg';closeModal();files=[];go('upload');addFiles([{name,size:0}]);toast('已生成模拟导入素材，请继续填写名字')}
 function heading(t,s,a=''){return `<div class="heading"><div><h1>${t}</h1><div class="sub">${s}</div></div><div class="row">${a}</div></div>`}
-function content(){if(page==='archived')return archivedContent();if(page==='trash')return storedTrashContent();if(page==='queue')return queueContent();if(page==='review')return reviewContent();if(page==='upload')return upload();if(page==='tasks')return tasks();if(page==='detail')return detail();if(page==='guide')return guide();if(page==='group')return groupContent();let review=page==='review',lib=page==='library';return heading(review?'审核中心':lib?'全部素材':'入库工作台',review?'统一核对素材信息，确认后完成入库':lib?'已完成审核的素材可供浏览与复用':'从素材上传到审核入库，跟进每一份内容的处理进度',lib?`<button class="primary client-upload-all" onclick="chooseAddAction('file')">↥ 上传</button>`:`<button class="client-collect" onclick="taskModal()"><span aria-hidden="true">♧</span> 收素材</button>${addMenu()}`)+(!review&&!lib?`<div class="stats">${[['待人工审核',items.filter(x=>x.status==='待人工审核').length,'补全与查重已通过'],['待补充字段',items.filter(x=>x.status==='待补充字段').length,'需要上传人完善信息'],['相似待确认',items.filter(x=>x.dup).length,'相似图片等待确认'],['已入库',items.filter(x=>x.status==='已入库').length,'审核通过，可供使用']].map(([t,n,s])=>`<div class="stat"><div class="sub">${t}</div><div class="num">${n.toString().padStart(2,'0')}</div><em>${s}</em></div>`).join('')}</div>`:'')+`<div class="card">${!lib&&!review?`<div class="tabs">${['全部素材','待人工审核','待补充字段','相似待确认','已退回','已入库'].map(t=>`<button class="${filter===t?'sel':''}" onclick="filter='${t}';render()">${t}</button>`).join('')}</div>`:''}<div class="toolbar client-list-toolbar"><div class="client-total">素材 <span ${lib?'id="stored-list-count"':''} class="muted">（${items.filter(x=>review?x.status==='待人工审核':lib?x.status==='已入库':filter==='全部素材'||x.status===filter).length}）</span></div><div class="sub">${lib?'已入库内容':'按最近上传时间排序'}</div></div>${lib?`<div id="rows" class="stored-asset-grid"></div><div id="stored-batch-host"></div>`:`<table><thead><tr><th>素材名称</th><th>来源 / 上传人</th><th>信息处理</th><th>适用渠道</th><th>当前状态</th><th>操作</th></tr></thead><tbody id="rows"></tbody></table>`}</div>`}
+function content(){if(page==='trash')return storedTrashContent();if(page==='queue')return queueContent();if(page==='review')return queueContent();if(page==='upload')return upload();if(page==='tasks')return tasks();if(page==='detail')return detail();if(page==='guide')return guide();if(page==='group')return groupContent();let review=page==='review',lib=page==='library';return heading(review?'审核中心':lib?'全部素材':'入库工作台',review?'统一核对素材信息，确认后完成入库':lib?'已完成审核的素材可供浏览与复用':'从素材上传到审核入库，跟进每一份内容的处理进度',lib?`<button class="primary client-upload-all" onclick="chooseAddAction('file')">↥ 上传</button>`:`<button class="client-collect" onclick="taskModal()"><span aria-hidden="true">♧</span> 收素材</button>${addMenu()}`)+(!review&&!lib?`<div class="stats">${[['待人工审核',items.filter(x=>x.status==='待人工审核').length,'补全与查重已通过'],['待补充字段',items.filter(x=>x.status==='待补充字段').length,'需要上传人完善信息'],['相似待确认',items.filter(x=>x.dup).length,'相似图片等待确认'],['已入库',items.filter(x=>x.status==='已入库').length,'审核通过，可供使用']].map(([t,n,s])=>`<div class="stat"><div class="sub">${t}</div><div class="num">${n.toString().padStart(2,'0')}</div><em>${s}</em></div>`).join('')}</div>`:'')+`<div class="card">${!lib&&!review?`<div class="tabs">${['全部素材','待人工审核','待补充字段','相似待确认','已退回','已入库'].map(t=>`<button class="${filter===t?'sel':''}" onclick="filter='${t}';render()">${t}</button>`).join('')}</div>`:''}<div class="toolbar client-list-toolbar"><div class="client-total">素材 <span ${lib?'id="stored-list-count"':''} class="muted">（${items.filter(x=>review?x.status==='待人工审核':lib?x.status==='已入库':filter==='全部素材'||x.status===filter).length}）</span></div><div class="sub">${lib?'已入库内容':'按最近上传时间排序'}</div></div>${lib?`<div id="rows" class="stored-asset-grid"></div><div id="stored-batch-host"></div>`:`<table><thead><tr><th>素材名称</th><th>来源 / 上传人</th><th>信息处理</th><th>适用渠道</th><th>当前状态</th><th>操作</th></tr></thead><tbody id="rows"></tbody></table>`}</div>`}
 const queueSelection=new Set();
 const queuedFormDrafts=new Map();
 let archiveOrder=0;
@@ -167,7 +167,15 @@ function isPendingQueueItem(item){
   return !item.externalSubmission&&(!item.by||item.by===currentReviewer)&&item.status!=='已入库'&&!queuedFormDrafts.has(item)&&!files.some(file=>file.approveFromQueue&&file.queueSource===item);
 }
 function pendingQueueItems(){return items.filter(item=>isPendingQueueItem(item)&&item.name.includes(query))}
-function queueContent(){let pending=pendingQueueItems();for(let x of queueSelection)if(!items.includes(x)||x.status==='已入库')queueSelection.delete(x);let chosen=pending.filter(x=>queueSelection.has(x));return `<section class="pending-queue"><div class="pending-heading"><div class="pending-title"><h1>待入库</h1><span class="sub">查看待入库素材和上传异常</span></div><div class="row"><span class="sub">已选 <span class="pending-count">${chosen.length}</span> 项</span><button ${chosen.length?'':'disabled'} onclick="deleteQueueSelection()">删除</button><button ${chosen.length?'':'disabled'} onclick="storeQueuedMaterial()">入库所选</button></div></div><div class="pending-body"><div class="pending-label"><span>全部文件</span><button type="button" onclick="chooseAddAction('file')">＋ 选择文件</button>${queuedFormDrafts.size?`<button type="button" onclick="openQueuedUpload([])">继续入库（${queuedFormDrafts.size}）</button>`:''}</div><div class="pending-table-frame"><div class="pending-table"><table><thead><tr><th class="pending-check"><input class="check" type="checkbox" aria-label="全选待入库素材" ${pending.length&&pending.every(x=>queueSelection.has(x))?'checked':''} onchange="setAllQueueChecked(this.checked)"></th><th>名称</th><th>状态</th><th>上传者</th><th>版本</th><th>上传时间</th><th>来源素材组</th><th>文件类型</th><th>操作</th></tr></thead><tbody id="rows"></tbody></table></div></div></div></section>`}
+function pendingWorkspaceTabs(){
+  const pending=items.filter(item=>isPendingQueueItem(item)&&!item.uploadError).length;
+  const review=items.filter(isReviewRecord).length;
+  return `<div class="pending-workspace-tabs" role="tablist" aria-label="素材处理类型">
+    <button type="button" role="tab" aria-selected="${page==='queue'}" onclick="go('queue')"><span>待入库</span><span class="cms-nav-count">${pending}</span></button>
+    <button type="button" role="tab" aria-selected="${page==='review'}" onclick="go('review')"><span>待审核</span><span class="cms-nav-count">${review}</span></button>
+  </div>`;
+}
+function queueContent(){let reviewing=page==='review',pending=pendingQueueItems();for(let x of queueSelection)if(!items.includes(x)||x.status==='已入库')queueSelection.delete(x);let chosen=pending.filter(x=>queueSelection.has(x));return `<section class="pending-queue"><div class="pending-heading"><div class="pending-title"><h1>待入库</h1><span class="sub">查看待入库素材和上传异常</span></div>${reviewing?'':`<div class="row"><span class="sub">已选 <span class="pending-count">${chosen.length}</span> 项</span><button ${chosen.length?'':'disabled'} onclick="deleteQueueSelection()">删除</button><button ${chosen.length?'':'disabled'} onclick="storeQueuedMaterial()">入库所选</button></div>`}</div><div class="pending-body"><div class="pending-label"><span>全部文件</span><button type="button" onclick="chooseAddAction('file')">＋ 选择文件</button>${queuedFormDrafts.size?`<button type="button" onclick="openQueuedUpload([])">继续入库（${queuedFormDrafts.size}）</button>`:''}</div>${pendingWorkspaceTabs()}${reviewing?reviewContent():`<div class="pending-table-frame"><div class="pending-table"><table><thead><tr><th class="pending-check"><input class="check" type="checkbox" aria-label="全选待入库素材" ${pending.length&&pending.every(x=>queueSelection.has(x))?'checked':''} onchange="setAllQueueChecked(this.checked)"></th><th>名称</th><th>状态</th><th>上传者</th><th>版本</th><th>上传时间</th><th>来源素材组</th><th>文件类型</th><th>操作</th></tr></thead><tbody id="rows"></tbody></table></div></div>`}</div></section>`}
 function queueStatus(file,index){
   const phase=file.aiState?.phase;
   const recognizing=phase==='running'||file.duplicatePhase==='running';
@@ -557,7 +565,7 @@ function storedAssetCard(item){
   </article>`;
 }
 function reviewContent(){
-  return heading('待审核','审核分派给我的外部上传素材')+`<div class="card"><table>
+  return `<div class="card pending-review-table"><table>
     <thead><tr><th>素材名称</th><th>上传者</th><th>目标素材组</th><th>提交时间</th><th>状态</th><th>操作</th></tr></thead>
     <tbody id="rows"></tbody></table></div>`;
 }
@@ -590,142 +598,13 @@ function openExternalReview(index){
   activeUploadFile=draft;
   go('upload');
 }
-const archivedFilters={mode:'',from:'',to:'',uploader:''};
-let archivedFilterDraft;
-function showArchivedFilterDialog(){
-  archivedFilterDraft={...archivedFilters,mode:archivedFilters.mode||'date'};
-  renderArchivedFilterDialog();
-}
-function archivedDateFields(){
-  const {from,to}=archivedFilterDraft;
-  const range=archivedFilterDraft.range??Boolean(to);
-  return `<label>${range?'开始日期':'选择日期'}<input id="archived-from" type="date" required value="${esc(from)}"></label>
-    ${range?`<label>结束日期<input id="archived-to" type="date" required value="${esc(to)}"></label>`:''}`;
-}
-function renderArchivedFilterDialog(){
-  const {mode,to,uploader}=archivedFilterDraft;
-  const range=archivedFilterDraft.range??Boolean(to);
-  showStoredActionDialog('筛选已入库素材',`<div class="archived-dialog-tabs" role="group" aria-label="筛选条件">
-    <button type="button" aria-pressed="${mode==='date'}" onclick="changeArchivedFilterMode('date')">上传时间</button>
-    <button type="button" aria-pressed="${mode==='uploader'}" onclick="changeArchivedFilterMode('uploader')">上传者</button>
-  </div>
-  <form id="archived-filter-form" onsubmit="event.preventDefault();applyArchivedFilter()">
-    ${mode==='date'?`<div class="archived-date-presets">
-      <button type="button" onclick="applyArchivedDatePreset(0)">今天</button>
-      <button type="button" onclick="applyArchivedDatePreset(1)">昨天</button>
-      <button type="button" onclick="applyArchivedDatePreset(0,6)">近 7 天</button>
-    </div>
-    <label class="archived-date-mode">日期选择方式
-      <select onchange="setArchivedDateRange(this.value==='range')">
-        <option value="single" ${range?'':'selected'}>单个日期</option>
-        <option value="range" ${range?'selected':''}>日期范围</option>
-      </select>
-    </label>
-    <div id="archived-date-fields" class="archived-date-range">${archivedDateFields()}</div>`:`<label class="archived-uploader-label">上传者<input id="archived-uploader" type="search" required placeholder="请输入上传者姓名" value="${esc(uploader)}"></label>`}
-    <p id="archived-filter-error" class="archived-filter-error" role="alert"></p>
-  </form>`,
-  '<button type="button" onclick="closeModal()">取消</button><button class="primary" type="submit" form="archived-filter-form">应用筛选</button>');
-}
-function changeArchivedFilterMode(mode){
-  archivedFilterDraft.mode=mode;
-  renderArchivedFilterDialog();
-  if(mode==='uploader')$('#archived-uploader')?.focus?.();
-}
-function setArchivedDateRange(range){
-  archivedFilterDraft.from=$('#archived-from').value;
-  archivedFilterDraft.range=range;
-  archivedFilterDraft.to='';
-  $('#archived-date-fields').innerHTML=archivedDateFields();
-  $('#archived-filter-error').textContent='';
-}
-function archivedDateOffset(days){
-  const date=new Date();
-  date.setDate(date.getDate()-days);
-  return [date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-');
-}
-function applyArchivedDatePreset(offset,days=0){
-  saveArchivedFilter({mode:'date',from:archivedDateOffset(offset+days),to:days?archivedDateOffset(offset):'',uploader:''});
-}
-function applyArchivedFilter(){
-  if(archivedFilterDraft.mode==='uploader'){
-    const uploader=$('#archived-uploader').value.trim();
-    if(!uploader){$('#archived-filter-error').textContent='请输入上传者姓名';return}
-    saveArchivedFilter({mode:'uploader',from:'',to:'',uploader});
-    return;
-  }
-  const range=archivedFilterDraft.range??Boolean(archivedFilterDraft.to);
-  const from=$('#archived-from').value,to=range?$('#archived-to').value:'';
-  if(!from||(range&&!to)){
-    $('#archived-filter-error').textContent=range?'请选择开始和结束日期':'请选择日期';
-    return;
-  }
-  if(to&&to<from){
-    $('#archived-filter-error').textContent='结束日期不能早于开始日期';
-    return;
-  }
-  saveArchivedFilter({mode:'date',from,to,uploader:''});
-}
-function saveArchivedFilter(filter){
-  Object.assign(archivedFilters,filter);
-  closeModal();
-  render();
-  $('#archived-filter-trigger')?.focus?.({preventScroll:true});
-}
-function clearArchivedFilter(){
-  saveArchivedFilter({mode:'',from:'',to:'',uploader:''});
-}
-function archivedFilterBar(){
-  const {mode,from,to,uploader}=archivedFilters;
-  const label=mode==='date'?(to&&to!==from?from+' 至 '+to:from):uploader||'筛选';
-  return `<div class="archived-filters" role="group" aria-label="筛选已入库素材">
-    <button type="button" id="archived-filter-trigger" aria-haspopup="dialog" onclick="showArchivedFilterDialog()">
-      <span aria-hidden="true" class="archived-filter-icon">⇅</span> ${esc(label)}
-    </button>
-    ${mode?'<button type="button" class="archived-filter-clear" aria-label="取消筛选" title="取消筛选" onclick="clearArchivedFilter()">×</button>':''}
-  </div>`;
-}
-function matchesArchivedFilters(item){
-  const {mode,from,to,uploader}=archivedFilters;
-  if(mode==='uploader')return String(item.by||'').includes(uploader);
-  if(mode!=='date')return true;
-  const date=String(item.uploadedAt||'').slice(0,10);
-  return Boolean(date&&date>=from&&date<=(to||from));
-}
-function archivedContent(){
-  const count=items.filter(item=>item.status==='已入库').length;
-  return heading('已入库','查看已完成入库的素材')+`<div class="archived-toolbar">
-    <span class="archived-total">共 ${count} 项</span>
-    ${archivedFilterBar()}
-  </div><div class="card archived-list">
-    <table aria-label="已入库素材">
-      <thead><tr><th scope="col">素材</th><th scope="col">上传者</th><th scope="col">来源素材组</th><th scope="col">上传时间</th><th scope="col">格式</th></tr></thead>
-      <tbody id="rows"></tbody>
-    </table>
-  </div>`;
-}
-function drawArchivedRows(target){
-  const archived=items.map((item,index)=>({item,index}))
-    .filter(({item})=>item.status==='已入库'&&item.name.includes(query)&&matchesArchivedFilters(item))
-    .sort((a,b)=>(b.item.archivedAt??0)-(a.item.archivedAt??0)
-      ||(b.item.archiveOrder??0)-(a.item.archiveOrder??0)||b.index-a.index);
-  target.innerHTML=archived.length?archived.map(({item,index})=>{
-    const canPreview=item.previewUrl&&['JPG','JPEG','PNG','GIF','WEBP'].includes(item.type);
-    const thumbnail=canPreview
-      ?`<button type="button" class="archived-thumbnail" aria-label="查看 ${esc(item.name)} 大图" onclick="showAssetImage(${index})"><img src="${esc(item.previewUrl)}" alt=""></button>`
-      :`<span class="archived-thumbnail" aria-hidden="true">${esc(item.type||'文件')}</span>`;
-    return `<tr>
-      <td><div class="archived-file">${thumbnail}<button type="button" class="stored-asset-title" onclick="openStoredAsset(${index})">${esc(item.name)}</button></div></td>
-      <td>${esc(item.by||'—')}</td><td>${esc(item.metadata?.group||'—')}</td><td>${esc(item.uploadedAt||'—')}</td><td>${esc(item.type||'—')}</td>
-    </tr>`;
-  }).join(''):'<tr><td colspan="5" class="empty">暂无符合条件的已入库素材</td></tr>';
-}
 function drawRows(){
   const basketCount=$('#client-basket-count');
   if(basketCount){
     basketCount.textContent=storedAssetBasket.size;
     basketCount.hidden=!storedAssetBasket.size;
   }
-  if(page==='queue'){drawQueueRows();return}if(!$('#rows'))return;if(page==='archived'){drawArchivedRows($('#rows'));return}if(page==='review'){drawReviewRows($('#rows'));return}let arr=items.map((x,i)=>({...x,i})).filter(x=>x.name.includes(query)&&(page==='review'?x.status==='待人工审核':page==='library'?x.status==='已入库':page==='group'?groupMatchesItem(x):filter==='全部素材'||x.status===filter));
+  if(page==='queue'){drawQueueRows();return}if(!$('#rows'))return;if(page==='review'){drawReviewRows($('#rows'));return}let arr=items.map((x,i)=>({...x,i})).filter(x=>x.name.includes(query)&&(page==='review'?x.status==='待人工审核':page==='library'?x.status==='已入库':page==='group'?groupMatchesItem(x):filter==='全部素材'||x.status===filter));
 if(page==='library'||page==='group'){
   if(appliedSearchTags.size)arr=arr.filter(item=>[...appliedSearchTags].every(label=>item.metadata?.storageTags?.includes(label)));
   const count=$('#stored-list-count');
@@ -877,7 +756,7 @@ function renameSelected(){let i=files.findIndex(f=>f.checked);if(i<0)return;$('#
 
 const similarityWarningThreshold=0.60;
 let pendingSimilarityPrompt=null;
-function duplicateAllowed(file){return file.duplicatePhase==='passed'||file.duplicatePhase==='similar'&&(file.approveFromQueue||file.similarityAccepted===true)}
+function duplicateAllowed(file){return file.duplicatePhase==='passed'||file.duplicatePhase==='similar'}
 function duplicateMarkup(file,index){if(file.approveFromQueue&&file.visualAnalysisFailed)return '<span class="sub">无法查重</span>';return file.duplicatePhase==='similar'?`<button type="button" class="duplicate-result duplicate-similar duplicate-details" title="查看相似图片" onclick="openDuplicateDetails(${index})"><span class="duplicate-similar-icon" aria-hidden="true">!</span><span>${file.similarityAccepted?'相似项已确认':'发现相似图片'}</span></button>`:file.duplicatePhase==='passed'?'<span class="duplicate-result"><span class="duplicate-pass" aria-hidden="true">✓</span><span>查重通过</span></span>':'<span class="duplicate-result duplicate-pending"><span class="ai-spinner duplicate-spinner" aria-hidden="true"></span><span>查重中…</span></span>'}
 function paintDuplicateChecks(){files.forEach((file,i)=>{let node=$('#duplicate-'+i);if(node)node.innerHTML=duplicateMarkup(file,i)})}
 function fileIsPendingOrListed(file){return files.includes(file)||pendingLocalFiles.includes(file)||items.includes(file)}
@@ -929,15 +808,10 @@ function collectSimilarMatches(file,candidates){
   }
   return matches;
 }
-function finishDuplicateCheck(file){if(!fileIsPendingOrListed(file))return;file.similarMatches=collectSimilarMatches(file);file.duplicatePhase=file.similarMatches.length?'similar':'passed';file.similarityAccepted=false;if(files.includes(file)&&page==='upload'){paintDuplicateChecks();paintUploadAI();maybeShowSimilarityWarning()}}
+function finishDuplicateCheck(file){if(!fileIsPendingOrListed(file))return;file.similarMatches=collectSimilarMatches(file);file.duplicatePhase=file.similarMatches.length?'similar':'passed';file.similarityAccepted=false;if(files.includes(file)&&page==='upload'){paintDuplicateChecks();paintUploadAI()}}
 function startDuplicateCheck(file){if(file.duplicatePhase)return;file.duplicatePhase='running';setTimeout(()=>{if(!fileIsPendingOrListed(file))return;if(file.visualPending&&file.visualPromise)file.visualPromise.then(()=>finishDuplicateCheck(file));else finishDuplicateCheck(file)},1600)}
 function similarityPromptFiles(){
   return page==='upload'?files:[];
-}
-function maybeShowSimilarityWarning(){
-  if(page!=='upload'||pendingLocalFiles.length||pendingSimilarityPrompt||$('#overlay').innerHTML.trim())return;
-  const batch=similarityPromptFiles().filter(file=>!file.approveFromQueue&&file.duplicatePhase==='similar'&&!file.similarityAccepted&&!file.similarityDismissed);
-  if(batch.length)showSimilarityWarning(batch);
 }
 function openDuplicateDetails(index){
   const file=files[index];
@@ -947,7 +821,7 @@ function openDuplicateDetails(index){
 }
 function showSimilarityWarning(batch,resume=false,review=false){let sources=batch.filter(f=>similarityPromptFiles().includes(f)&&f.duplicatePhase==='similar'&&(review||!f.similarityAccepted));if(!sources.length)return;captureUploadDraft();if(!review){pendingUpload=null;pendingSimilarityPrompt={files:sources,resume}}$('#overlay').innerHTML=`<div class="modalbg"><div class="modal similarity-warning-modal" role="dialog" aria-modal="true" aria-labelledby="similarity-warning-title"><h2 id="similarity-warning-title">库内已存在相似图片</h2><p class="sub">以下为相似度超过60%的素材（阈值暂定）${review||sources.every(file=>file.approveFromQueue)?'。':'，是否继续上传？'}</p><div class="similarity-warning-body">${sources.map(file=>`<section class="similarity-warning-section"><div class="similarity-source-name">当前素材：${esc(file.name)}</div><div class="similarity-card-grid">${(file.similarMatches||[]).filter(match=>match.score>similarityWarningThreshold).map(match=>`<div class="similarity-match-card">${match.item.previewUrl?`<img class="similarity-thumbnail" src="${esc(match.item.previewUrl)}" alt="${esc(match.item.name)}">`:`<div class="similarity-thumbnail similarity-thumbnail-placeholder">${esc(match.item.type||'图片')}<span>暂无缩略图</span></div>`}<div class="similarity-match-info"><strong title="${esc(match.item.name)}">${esc(match.item.name)}</strong><div><span class="similarity-score">相似度 ${Math.round(match.score*1000)/10}%</span>${match.item.metadata?.version?`<span class="muted">${esc(match.item.metadata.version)}</span>`:''}</div></div></div>`).join('')}</div></section>`).join('')}</div><div class="foot">${review?`<button class="primary similarity-review-close" onclick="closeModal()">关闭</button>`:`<button onclick="cancelSimilarityWarning()">取消</button><button class="primary" onclick="acceptSimilarityWarning()">确定</button>`}</div></div></div>`;if(review)$('.similarity-review-close')?.focus?.()}
 function cancelSimilarityWarning(){let prompt=pendingSimilarityPrompt;if(prompt)prompt.files.forEach(f=>f.similarityDismissed=true);pendingSimilarityPrompt=null;closeModal()}
-function acceptSimilarityWarning(){let prompt=pendingSimilarityPrompt;if(!prompt)return;prompt.files.forEach(f=>{if(similarityPromptFiles().includes(f)){f.similarityAccepted=true;f.similarityDismissed=false}});pendingSimilarityPrompt=null;closeModal();paintDuplicateChecks();paintUploadAI();if(prompt.resume)submitUpload(page==='agency');else maybeShowSimilarityWarning()}
+function acceptSimilarityWarning(){let prompt=pendingSimilarityPrompt;if(!prompt)return;prompt.files.forEach(f=>{if(similarityPromptFiles().includes(f)){f.similarityAccepted=true;f.similarityDismissed=false}});pendingSimilarityPrompt=null;closeModal();paintDuplicateChecks();paintUploadAI();if(prompt.resume)submitUpload(page==='agency')}
 
 function syncDuplicateChecks(){if(page!=='upload')return;files.forEach(startDuplicateCheck);paintDuplicateChecks()}
 
@@ -1316,27 +1190,20 @@ function confirmMaterialNames(){
   render();
   $('.upload-meta')?.scrollTo?.({top:0,behavior:'smooth'});
   $('#desc')?.focus?.({preventScroll:true});
-  maybeShowSimilarityWarning();
 }
 
-let pendingUpload=null;
+let pendingUpload=null,uploadSuccessDestination='queue';
 function confirmationMaterialList(batch){return `<div class="confirmation-list-label">待入库素材（${batch.length}）</div><div class="confirmation-materials" role="region" aria-label="待入库素材列表，可滚动查看" tabindex="0"><ul>${batch.map(f=>`<li class="confirmation-material">${f.previewUrl&&['JPG','JPEG','PNG','GIF','WEBP'].includes(f.type)?`<img class="confirmation-thumb" src="${esc(f.previewUrl)}" alt="${esc(f.name)}">`:`<span class="confirmation-file-icon" aria-hidden="true">${esc(f.type)}</span>`}<div class="confirmation-material-info"><div class="confirmation-material-name">${esc(f.name)}</div><div class="muted">${esc(f.type)} · ${esc(f.size)}</div></div>${f.duplicatePhase==='passed'&&!f.visualAnalysisFailed?'<span class="confirmation-check" aria-label="查重通过">✓</span>':''}</li>`).join('')}</ul></div>`}
 function selectedUploadFiles(ext=false){return ext?files:files.filter(f=>f.checked)}
 function openUploadConfirmation(metadata){if(pendingUpload)return;let chosen=selectedUploadFiles();if(!chosen.length)return toast('请先勾选要入库的素材');pendingUpload={metadata:{...metadata},sourceFiles:chosen,files:chosen.map(f=>({...f}))};$('#overlay').innerHTML=`<div class="modalbg"><div class="modal upload-confirm" role="dialog" aria-modal="true" aria-labelledby="upload-confirm-title"><div id="upload-confirm-content"><h2 id="upload-confirm-title">是否确定上传</h2>${confirmationMaterialList(pendingUpload.files)}<div class="upload-confirm-actions"><button onclick="cancelUploadConfirmation()">否</button><button class="primary" onclick="confirmUploadYes()">是</button></div></div></div></div>`}
 function cancelUploadConfirmation(){pendingUpload=null;closeModal()}
-function confirmUploadYes(){if(!pendingUpload)return;if(pendingUpload.sourceFiles.some(f=>!f.approveFromQueue&&f.duplicatePhase==='similar'&&!f.similarityAccepted)){const chosen=pendingUpload.sourceFiles;cancelUploadConfirmation();blockUnconfirmedSimilarity(chosen);return}if(pendingUpload.files.some(f=>!duplicateAllowed(f))){cancelUploadConfirmation();return toast('查重尚未完成，无法入库')}if(!validateUploadBatch(false)){cancelUploadConfirmation();return}let batch=pendingUpload;pendingUpload=null;let start=items.length;batch.files.forEach(f=>{let saved={...f,from:f.from||'内部上传',by:f.by||'林晓',status:f.approveFromQueue?'已入库':'待人工审核',uploadedAt:f.uploadedAt||new Date().toISOString().slice(0,10),ai:true,manual:!aiSupported(f.type)&&!isFailureDemoFile(f)&&!isSuccessDemoFile(f),dup:false,metadata:{...(f.metadata||batch.metadata)}};if(f.approveFromQueue)saved.archivedAt=Date.now();delete saved.queueSource;delete saved.approveFromQueue;if(f.queueSource){Object.assign(f.queueSource,saved);queueSelection.delete(f.queueSource);queuedFormDrafts.delete(f.queueSource)}else items.push(saved)});selected=start;files=files.filter(f=>!batch.sourceFiles.includes(f));
+function confirmUploadYes(){if(!pendingUpload)return;if(pendingUpload.files.some(f=>!duplicateAllowed(f))){cancelUploadConfirmation();return toast('查重尚未完成，无法入库')}if(!validateUploadBatch(false)){cancelUploadConfirmation();return}let batch=pendingUpload;uploadSuccessDestination=batch.files.some(file=>file.approveFromQueue)?'library':'queue';pendingUpload=null;let start=items.length;batch.files.forEach(f=>{let saved={...f,from:f.from||'内部上传',by:f.by||'林晓',status:f.approveFromQueue?'已入库':'待人工审核',uploadedAt:f.uploadedAt||new Date().toISOString().slice(0,10),ai:true,manual:!aiSupported(f.type)&&!isFailureDemoFile(f)&&!isSuccessDemoFile(f),dup:false,metadata:{...(f.metadata||batch.metadata)}};if(f.approveFromQueue)saved.archivedAt=Date.now();delete saved.queueSource;delete saved.approveFromQueue;if(f.queueSource){Object.assign(f.queueSource,saved);queueSelection.delete(f.queueSource);queuedFormDrafts.delete(f.queueSource)}else items.push(saved)});selected=start;files=files.filter(f=>!batch.sourceFiles.includes(f));
   const sidebar=$('.client-sidebar');
   if(sidebar)sidebar.innerHTML=clientSidebar();
   let html=`<div class="upload-success-icon" aria-hidden="true">✓</div><h2 id="upload-confirm-title">上传成功</h2><div class="upload-confirm-actions"><button class="primary" onclick="acknowledgeUploadSuccess()">确定</button></div>`;let content=$('#upload-confirm-content');if(content)content.innerHTML=html}
-function acknowledgeUploadSuccess(){closeModal();go('queue')}
+function acknowledgeUploadSuccess(){closeModal();go(uploadSuccessDestination)}
 
 function fileMissingFields(f){ensureFileFields(f);let required=[...new Set(['group','kind','product','channel','version',...f.aiState.missing])];return required.filter(id=>!String(f.metadata[id]||'').trim()||['kind','product','channel'].includes(id)&&String(f.metadata[id]).startsWith('请选择'))}
-function blockUnconfirmedSimilarity(chosen){
-  const unconfirmed=chosen.filter(file=>!file.approveFromQueue&&file.duplicatePhase==='similar'&&!file.similarityAccepted);
-  if(!unconfirmed.length)return false;
-  showSimilarityWarning(unconfirmed,true);
-  return true;
-}
 function validateAgencyFields(chosen){
   const invalid=chosen.find(file=>{
     const {channel,version}=file.metadata;
@@ -1349,7 +1216,7 @@ function validateAgencyFields(chosen){
   toast(channelMissing?'请选择使用渠道':'请输入正确的版本号，例如 V1.0 或 V1.1.2');
   return false;
 }
-function validateUploadBatch(ext=false){captureUploadDraft();if(!files.length){toast('请先添加至少一份素材');return false}let chosen=selectedUploadFiles(ext);if(!chosen.length){toast('请先勾选要入库的素材');return false}if(ext)return validateAgencyFields(chosen);if(blockUnconfirmedSimilarity(chosen))return false;if(chosen.some(f=>!duplicateAllowed(f))){toast('素材查重尚未完成，请等待查重通过');return false}if(chosen.some(f=>f.visualPending)){toast('正在查找相似图片，请稍候');return false}if(chosen.some(f=>f.aiState?.phase==='running')){toast('正在识别，请稍候完成后确认信息');return false}let incomplete=chosen.find(f=>fileMissingFields(f).length);if(incomplete){switchUploadFile(files.indexOf(incomplete));uploadAI.showValidation=true;validateUploadFields();return false}return validateVersionBatch(chosen)}
+function validateUploadBatch(ext=false){captureUploadDraft();if(!files.length){toast('请先添加至少一份素材');return false}let chosen=selectedUploadFiles(ext);if(!chosen.length){toast('请先勾选要入库的素材');return false}if(ext)return validateAgencyFields(chosen);if(chosen.some(f=>!duplicateAllowed(f))){toast('素材查重尚未完成，请等待查重通过');return false}if(chosen.some(f=>f.visualPending)){toast('正在查找相似图片，请稍候');return false}if(chosen.some(f=>f.aiState?.phase==='running')){toast('正在识别，请稍候完成后确认信息');return false}let incomplete=chosen.find(f=>fileMissingFields(f).length);if(incomplete){switchUploadFile(files.indexOf(incomplete));uploadAI.showValidation=true;validateUploadFields();return false}return validateVersionBatch(chosen)}
 
 function submitUpload(ext){
   if(!validateUploadBatch(ext))return;
@@ -1458,7 +1325,7 @@ let storedAssetReturnPage='library';
 function openStoredAsset(index){
   const item=items[index];
   if(item?.status!=='已入库')return;
-  if(page!=='detail')storedAssetReturnPage=['group','archived'].includes(page)?page:'library';
+  if(page!=='detail')storedAssetReturnPage=page==='group'?'group':'library';
   selected=index;
   item.viewCount=(Number(item.viewCount)||0)+1;
   go('detail');
