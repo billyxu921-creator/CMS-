@@ -1,5 +1,7 @@
 
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let sidebarCollapsed=false;
+function toggleClientSidebar(){sidebarCollapsed=!sidebarCollapsed;render()}
 let page='library',filter='全部素材',query='',files=[],source='内部上传',selected=0,taskMade=false,submitted=false;
 let items=[];
 const recycledAssets=[];
@@ -20,6 +22,7 @@ function externalReviewStatus(item){
 const tag=s=>`<span class="tag ${s.includes('补充')?'warn':s.includes('拒绝')||s.includes('退回')?'bad':s.includes('审核')?'blue':''}">${s}</span>`;
 function go(p,{cancelApproval=false}={}){
   captureUploadDraft();
+  if(page==='groups'&&p!=='groups')managementDetail=null;
   if(page==='agency'&&p!=='agency'&&agencyResubmission){
     agencyResubmission=null;
     files=[];
@@ -125,7 +128,7 @@ function clientHeaderActions(){
   </div>`;
 }
 
-function render(){let ext=page==='agency';$('#app').innerHTML=`<div class="client-shell"><header class="client-header"><div class="logo"><span class="app-grid" aria-hidden="true">⠿</span><span class="client-brand" aria-hidden="true">U</span><span>素材库</span>${ext?'<small>素材协作上传</small>':''}</div>${!ext&&['queue','library','review','group'].includes(page)?searchBar():''}<div class="client-account">${ext?'':clientHeaderActions()}<span class="badge">${ext?'A':'林'}</span><span>${ext?'青禾创意 · 访客':'林晓 · 内容运营'}</span></div></header>${ext?`<div class="external">${agency()}</div>`:`<div class="layout client-layout"><aside class="client-sidebar">${clientSidebar()}</aside><main class="client-main" data-view="${page==='review'?'queue':page}"><div class="crumb">${page==='detail'?'全部素材':'全部'} <span aria-hidden="true">›</span> ${({'queue':'待入库',upload:'上传素材',tasks:'收集任务',review:'待入库',trash:'回收站',library:'全部素材',group:esc(activeMaterialGroup),detail:esc(items[selected]?.name||'素材详情'),guide:'流程说明'})[page]}</div>${content()}</main></div>`}<div class="client-demo-note">演示环境：所有文件、识别、查重、审核及权限均为本地模拟；刷新后恢复初始演示数据。</div></div>`}
+function render(){let ext=page==='agency';$('#app').innerHTML=`<div class="client-shell ${!ext&&sidebarCollapsed?'sidebar-collapsed':''}"><header class="client-header"><div class="logo"><span class="app-grid" aria-hidden="true">⠿</span><span class="client-brand" aria-hidden="true">U</span><span>素材库</span>${ext?'<small>素材协作上传</small>':''}</div>${!ext&&['queue','library','review','group','groups'].includes(page)?searchBar():''}<div class="client-account">${ext?'':clientHeaderActions()}<span class="badge">${ext?'A':'林'}</span><span>${ext?'青禾创意 · 访客':'林晓 · 内容运营'}</span></div></header>${ext?`<div class="external">${agency()}</div>`:`<div class="layout client-layout"><aside class="client-sidebar">${clientSidebar()}</aside><main class="client-main ${page==='groups'&&managementDetail?'management-detail-open':''}" data-view="${page==='review'?'queue':page}"><div class="crumb">${page==='detail'?'全部素材':'全部'} <span aria-hidden="true">›</span> ${({'queue':'待入库',upload:'上传素材',tasks:'收集任务',review:'待入库',trash:'回收站',library:'全部素材',groups:'素材组管理',group:esc(activeMaterialGroup),detail:esc(items[selected]?.name||'素材详情'),guide:'流程说明'})[page]}</div>${content()}</main></div>`}${ext?'':`<button type="button" class="client-sidebar-handle" aria-label="${sidebarCollapsed?'展开导航栏':'隐藏导航栏'}" aria-expanded="${!sidebarCollapsed}" title="${sidebarCollapsed?'展开导航栏':'隐藏导航栏'}" onclick="toggleClientSidebar()"><span aria-hidden="true">${sidebarCollapsed?'›':'‹'}</span></button>`}<div class="client-demo-note">演示环境：所有文件、识别、查重、审核及权限均为本地模拟；刷新后恢复初始演示数据。</div></div>`}
 
 function sidebarIcon(name){let paths={trash:'<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',layers:'<path d="m3 7 9-5 9 5-9 5-9-5Zm0 5 9 5 9-5M3 17l9 5 9-5"/>',inbox:'<path d="M5 6 7 3h10l2 3M4 6h16v15H4zM9 10h6"/>',favorite:'<path d="m12 3 3 3-3 3-3-3 3-3ZM2 15l6 2h7m-13 2 7 3 12-6-4-2-5 2M5 12l6 1 3 3"/>',person:'<circle cx="12" cy="7" r="4"/><path d="M4 22v-3a8 8 0 0 1 16 0v3"/>',folder:'<path d="M2 5h7l2 3h11v13H2z"/>',group:'<path d="M2 4h8l2 3h10v14H2z"/><circle cx="9" cy="12" r="2"/><path d="M5 19v-1a4 4 0 0 1 8 0v1m2-7a2 2 0 0 1 1 4m0 0a4 4 0 0 1 3 3"/>'};return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]||paths.folder}</svg>`}
 let sidebarAssetsExpanded=true,sidebarContentExpanded=true;
@@ -138,7 +141,7 @@ function clientSidebar(){let approvedCount=items.filter(x=>x.status==='已入库
   <div class="cms-nav-root ${page==='trash'?'active':''}">
     <button onclick="go('trash')">${sidebarIcon('trash')}<span>回收站</span></button>
   </div>
-  <div class="cms-nav-divider"></div><div class="reference-nav-label">${sidebarIcon('layers')}<span>全局概览</span></div><button onclick="document.querySelector('.reference-group-heading')?.scrollIntoView({behavior:'smooth',block:'start'})">${sidebarIcon('folder')}<span>素材组管理</span></button><div class="reference-nav-label">${sidebarIcon('person')}<span>权限管理</span></div><div class="reference-nav-label">${sidebarIcon('inbox')}<span>生命周期</span></div><div class="reference-nav-label">${sidebarIcon('folder')}<span>审计日志</span></div></nav>`}
+  <div class="cms-nav-divider"></div><div class="reference-nav-label">${sidebarIcon('layers')}<span>全局概览</span></div><button class="${page==='groups'?'active':''}" onclick="openGroupManagement()">${sidebarIcon('folder')}<span>素材组管理</span></button><div class="reference-nav-label">${sidebarIcon('person')}<span>权限管理</span></div><div class="reference-nav-label">${sidebarIcon('inbox')}<span>生命周期</span></div><div class="reference-nav-label">${sidebarIcon('folder')}<span>审计日志</span></div></nav>`}
 function sidebarGroupRow(name,count,icon,style='',child=false){return `<div class="reference-tree-row ${child?'tree-child':''}"><span class="tree-arrow" aria-hidden="true">${name==='Portfolio-辣鲜露系列'?'▾':'▸'}</span><button class="tree-entry ${style} ${page==='group'&&activeMaterialGroup===name?'current-group':''}" data-group="${esc(name)}" onclick="openMaterialGroup(this.dataset.group)">${sidebarIcon(icon)}<span>${esc(name)}</span>${count?`<small>${count}</small>`:''}</button></div>`}
 let activeMaterialGroup='Portfolio-辣鲜露系列';
 function openMaterialGroup(name){if(name!==activeMaterialGroup){selectedSearchTags.clear();appliedSearchTags.clear();selectedStoredAssets.clear()}activeMaterialGroup=name;go('group')}
@@ -159,7 +162,497 @@ function openLocalSelection(action,retryItem=null){let picker=document.createEle
 function chooseAddAction(action){closeAddMenu();if(action==='file'||action==='folder'){openLocalSelection(action);return}let title=({baidu:'百度网盘导入',muse:'MUSE导入',text:'新建纯文本',library:'从素材库添加',group:'新建子素材组'})[action];let form='';if(action==='baidu'||action==='muse'){form=`<p class="sub">演示入口：仅模拟导入流程，不连接外部服务。</p>${field(action==='baidu'?'网盘分享链接':'MUSE 素材链接 / 编号','<input id="import-reference" placeholder="请输入链接或编号">',true)}${field('素材名称','<input id="import-name" placeholder="请输入导入后的素材名称">',true)}`}else if(action==='text'){form=field('素材名称','<input id="text-name" placeholder="请输入纯文本名称">',true)+field('文本内容','<textarea id="text-content" rows="7" placeholder="请输入文本内容"></textarea>',true)}else if(action==='group'){form=field('所属素材组','<input value="CRM · 品牌内容团队" readonly>')+field('子素材组名称','<input id="subgroup-name" placeholder="请输入子素材组名称">',true)}else{form=`<p class="sub">选择已有素材，模拟添加到当前素材组。</p><div class="existing-library-list">${items.length?items.map((item,i)=>`<label><input class="check" type="checkbox" data-library-index="${i}">${esc(item.name)}</label>`).join(''):'<div class="empty">素材库暂无素材</div>'}</div>`}$('#overlay').innerHTML=`<div class="modalbg"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="add-action-title"><h2 id="add-action-title">${title}</h2><div style="margin-top:24px">${form}</div><div class="foot"><button onclick="closeModal()">取消</button><button class="primary" onclick="confirmAddAction('${action}')">确定</button></div></div></div>`}
 function confirmAddAction(action){if(action==='group'){let name=$('#subgroup-name').value.trim();if(!name)return toast('请填写子素材组名称');materialGroups.push(name);closeModal();render();toast('子素材组已创建');return}if(action==='text'){let name=$('#text-name').value.trim(),content=$('#text-content').value;if(!name||!content.trim())return toast('请填写名称与文本内容');if(!name.toLowerCase().endsWith('.txt'))name+='.txt';closeModal();files=[];go('upload');addFiles([new File([content],name,{type:'text/plain'})]);return}if(action==='library'){let chosen=[...(document.querySelectorAll?.('[data-library-index]:checked')||[])].map(n=>items[Number(n.dataset.libraryIndex)]).filter(Boolean);if(!chosen.length)return toast('请选择素材');closeModal();toast('已模拟添加 '+chosen.length+' 份已有素材');return}let ref=$('#import-reference').value.trim(),name=$('#import-name').value.trim();if(!ref||!name)return toast('请填写来源与素材名称');if(action==='baidu'&&!/^https:\/\/pan\.baidu\.com\//i.test(ref))return toast('请输入有效的百度网盘分享链接');if(!/\.[A-Za-z0-9]+$/.test(name))name+=action==='baidu'?'.pdf':'.jpg';closeModal();files=[];go('upload');addFiles([{name,size:0}]);toast('已生成模拟导入素材，请继续填写名字')}
 function heading(t,s,a=''){return `<div class="heading"><div><h1>${t}</h1><div class="sub">${s}</div></div><div class="row">${a}</div></div>`}
-function content(){if(page==='trash')return storedTrashContent();if(page==='queue')return queueContent();if(page==='review')return queueContent();if(page==='upload')return upload();if(page==='tasks')return tasks();if(page==='detail')return detail();if(page==='guide')return guide();if(page==='group')return groupContent();let review=page==='review',lib=page==='library';return heading(review?'审核中心':lib?'全部素材':'入库工作台',review?'统一核对素材信息，确认后完成入库':lib?'已完成审核的素材可供浏览与复用':'从素材上传到审核入库，跟进每一份内容的处理进度',lib?`<button class="primary client-upload-all" onclick="chooseAddAction('file')">↥ 上传</button>`:`<button class="client-collect" onclick="taskModal()"><span aria-hidden="true">♧</span> 收素材</button>${addMenu()}`)+(!review&&!lib?`<div class="stats">${[['待人工审核',items.filter(x=>x.status==='待人工审核').length,'补全与查重已通过'],['待补充字段',items.filter(x=>x.status==='待补充字段').length,'需要上传人完善信息'],['相似待确认',items.filter(x=>x.dup).length,'相似图片等待确认'],['已入库',items.filter(x=>x.status==='已入库').length,'审核通过，可供使用']].map(([t,n,s])=>`<div class="stat"><div class="sub">${t}</div><div class="num">${n.toString().padStart(2,'0')}</div><em>${s}</em></div>`).join('')}</div>`:'')+`<div class="card">${!lib&&!review?`<div class="tabs">${['全部素材','待人工审核','待补充字段','相似待确认','已退回','已入库'].map(t=>`<button class="${filter===t?'sel':''}" onclick="filter='${t}';render()">${t}</button>`).join('')}</div>`:''}<div class="toolbar client-list-toolbar"><div class="client-total">素材 <span ${lib?'id="stored-list-count"':''} class="muted">（${items.filter(x=>review?x.status==='待人工审核':lib?x.status==='已入库':filter==='全部素材'||x.status===filter).length}）</span></div><div class="sub">${lib?'已入库内容':'按最近上传时间排序'}</div></div>${lib?`<div id="rows" class="stored-asset-grid"></div><div id="stored-batch-host"></div>`:`<table><thead><tr><th>素材名称</th><th>来源 / 上传人</th><th>信息处理</th><th>适用渠道</th><th>当前状态</th><th>操作</th></tr></thead><tbody id="rows"></tbody></table>`}</div>`}
+const expandedManagementGroups=new Set([
+ '根素材组-1','根素材组-1 / 子素材组1.1','根素材组-1 / 子素材组1.2',
+ '根素材组-1 / 子素材组1.2 / 子素材组1.2.1','根素材组-1 / 子素材组1.3',
+ '根素材组-3','根素材组-4','根素材组-5','根素材组-10',
+]);
+let managementGroupSelected=false;
+function openGroupManagement(){
+  managementGroupSelected=false;managementDetail=null;selectedManagementPlaceholders.clear();selectedStoredAssets.clear();
+  if(!referenceMaterialGroups.includes(activeMaterialGroup))activeMaterialGroup='根素材组-1';
+  go('groups');
+}
+function selectManagedGroup(path){
+  managementGroupSelected=true;
+  managementDetail=null;storedEditDraft=null;
+  if(activeMaterialGroup!==path){selectedSearchTags.clear();appliedSearchTags.clear();selectedStoredAssets.clear()}
+  activeMaterialGroup=path;go('groups');
+}
+function rememberManagementBranch(details){
+  if(details.open)expandedManagementGroups.add(details.dataset.path);
+  else expandedManagementGroups.delete(details.dataset.path);
+}
+const managementGroupOrders=new Map();
+let managementTreeGroupPaths=[];
+let draggedManagementGroup='';
+function managementParentPath(path){return path.slice(0,Math.max(0,path.lastIndexOf(' / ')))}
+function orderedManagementChildren(paths,parent){
+ const order=managementGroupOrders.get(parent)||[];
+ return paths.filter(path=>managementParentPath(path)===parent).sort((a,b)=>{
+  const ai=order.indexOf(a),bi=order.indexOf(b);
+  return (ai<0?order.length+paths.indexOf(a):ai)-(bi<0?order.length+paths.indexOf(b):bi);
+ });
+}
+function managementDragHandle(path,name){return `<span class="management-drag-handle" draggable="true" role="img" aria-label="拖动调整 ${esc(name)} 顺序" title="拖动调整同级顺序" data-path="${esc(path)}" onclick="event.preventDefault();event.stopPropagation()" ondragstart="startManagementGroupDrag(event,this.dataset.path)" ondragend="endManagementGroupDrag()"><span aria-hidden="true">⠿</span></span>`}
+function startManagementGroupDrag(event,path){
+ draggedManagementGroup=path;event.stopPropagation();
+ event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('text/plain',path);
+}
+function clearManagementDropIndicators(){document.querySelectorAll('.management-drop-before,.management-drop-after').forEach(node=>node.classList.remove('management-drop-before','management-drop-after'))}
+function managementGroupDragOver(event,row){
+ event.stopPropagation();
+ const target=row.dataset.managementGroup;
+ if(!draggedManagementGroup||target===draggedManagementGroup||managementParentPath(target)!==managementParentPath(draggedManagementGroup))return;
+ event.preventDefault();event.dataTransfer.dropEffect='move';clearManagementDropIndicators();
+ const heading=row.querySelector(':scope > details > summary')||row;
+ const bounds=heading.getBoundingClientRect();
+ row.classList.add(event.clientY<bounds.top+bounds.height/2?'management-drop-before':'management-drop-after');
+}
+function reorderManagementGroup(source,target,after=false){
+ if(source===target||managementParentPath(source)!==managementParentPath(target))return false;
+ const parent=managementParentPath(source),siblings=orderedManagementChildren(managementTreeGroupPaths,parent);
+ if(!siblings.includes(source)||!siblings.includes(target))return false;
+ const order=siblings.filter(path=>path!==source),index=order.indexOf(target);
+ order.splice(index+(after?1:0),0,source);managementGroupOrders.set(parent,order);return true;
+}
+function dropManagementGroup(event,row){
+ event.stopPropagation();
+ const source=draggedManagementGroup,target=row.dataset.managementGroup;
+ const after=row.classList.contains('management-drop-after');
+ if(!source||managementParentPath(source)!==managementParentPath(target)){endManagementGroupDrag();return}
+ event.preventDefault();const scroll=$('.management-tree')?.scrollTop||0;
+ if(reorderManagementGroup(source,target,after)){endManagementGroupDrag();render();$('.management-tree').scrollTop=scroll}else endManagementGroupDrag();
+}
+function endManagementGroupDrag(){draggedManagementGroup='';clearManagementDropIndicators()}
+
+function managementGroupTree(){
+  const groups=new Set(referenceMaterialGroups),assets=new Map();
+  for(const path of referenceRelatedMaterials)assets.set(path,null);
+  items.forEach((item,index)=>{
+    if(item.status!=='已入库')return;
+    for(const group of [item.metadata?.group,...(item.additionalGroups||[])].filter(Boolean)){
+      const parts=group.split(' / ');
+      parts.forEach((_,i)=>groups.add(parts.slice(0,i+1).join(' / ')));
+      assets.set(group+' / '+item.name,index);
+    }
+  });
+  const paths=[...new Set([...groups,...assets.keys()])];
+  managementTreeGroupPaths=[...groups];
+  function branch(parent=''){
+    return `<ul>${orderedManagementChildren(paths,parent).map(path=>{
+      const name=path.split(' / ').at(-1),group=groups.has(path);
+      const children=paths.some(child=>child.startsWith(path+' / '));
+      if(!group){const index=assets.get(path);return `<li class="management-asset">${index===null?`<span>${esc(name)}</span>`:`<button type="button" data-group="${esc(parent)}" onclick="selectManagedGroup(this.dataset.group);openStoredAsset(${index})">${esc(name)}</button>`}</li>`}
+      const label=`<button type="button" class="management-group-name ${managementGroupSelected&&activeMaterialGroup===path?'selected':''}" title="${esc(name)}" aria-pressed="${managementGroupSelected&&activeMaterialGroup===path}" data-path="${esc(path)}" onclick="event.preventDefault();selectManagedGroup(this.dataset.path)">${sidebarIcon('folder')}<span>${esc(name)}</span></button>`;
+      const rowAttrs=`data-management-group="${esc(path)}" ondragover="managementGroupDragOver(event,this)" ondrop="dropManagementGroup(event,this)"`;
+      const handle=managementDragHandle(path,name);
+      return children?`<li ${rowAttrs}><details data-path="${esc(path)}" ${expandedManagementGroups.has(path)?'open':''} ontoggle="rememberManagementBranch(this)"><summary aria-label="展开或收起 ${esc(name)}">${handle}${label}</summary>${branch(path)}</details></li>`:
+        `<li class="management-group-leaf" ${rowAttrs}>${handle}${label}</li>`;
+    }).join('')}</ul>`;
+  }
+  return branch();
+}
+const managementGroupInfo=new Map();
+let newManagementGroupDraft=null;
+function showNewManagementSubgroup(){
+ newManagementGroupDraft={parent:activeMaterialGroup,coverUrl:''};
+ showStoredActionDialog('新建素材组',`<div class="field"><label for="management-new-group-name">组名<span class="required">*</span></label><input id="management-new-group-name" maxlength="100" placeholder="请填写此素材组的名称" oninput="clearNewManagementGroupError()"><div id="management-new-group-error" class="intake-error" role="alert"></div></div><div class="field"><label for="management-new-group-description">描述</label><textarea id="management-new-group-description" rows="5" maxlength="500" placeholder="请填写此素材组的描述"></textarea></div><div class="field"><label>封面图</label><button type="button" onclick="document.getElementById('management-new-group-cover').click()">本地上传</button><input id="management-new-group-cover" type="file" accept="image/*" hidden onchange="selectNewManagementGroupCover(this.files)"><div id="management-new-group-cover-preview"></div></div>`, '<button type="button" onclick="closeModal()">取消</button><button type="button" class="primary" onclick="saveNewManagementSubgroup()">确定</button>');
+ $('#stored-action-title').closest?.('.modal')?.classList?.add('management-new-group-modal');
+ $('#management-new-group-name').focus?.();
+}
+function clearNewManagementGroupError(){
+ $('#management-new-group-error').textContent='';$('#management-new-group-name').classList?.remove('ai-field-error');$('#management-new-group-name').removeAttribute?.('aria-invalid');
+}
+function selectNewManagementGroupCover(files){
+ const file=files?.[0];if(!file||!newManagementGroupDraft)return;
+ if(!file.type.startsWith('image/'))return toast('请选择图片作为封面');
+ if(newManagementGroupDraft.coverUrl)URL.revokeObjectURL(newManagementGroupDraft.coverUrl);
+ newManagementGroupDraft.coverUrl=URL.createObjectURL(file);
+ $('#management-new-group-cover-preview').innerHTML=`<img src="${esc(newManagementGroupDraft.coverUrl)}" alt="素材组封面预览"><span>${esc(file.name)}</span>`;
+}
+function saveNewManagementSubgroup(){
+ if(!newManagementGroupDraft)return;
+ const name=$('#management-new-group-name').value.trim(),parent=newManagementGroupDraft.parent;
+ let error=!name?'请填写素材组名称':name.includes(' / ')?'组名不能包含路径分隔符“ / ”':'';
+ const path=parent+' / '+name;
+ const siblings=managementTreeGroupPaths.filter(group=>managementParentPath(group)===parent);
+ if(!error&&siblings.some(group=>group.split(' / ').at(-1).normalize('NFC').toLowerCase()===name.normalize('NFC').toLowerCase()))error='同级素材组名称重复，请重新填写';
+ if(error){$('#management-new-group-error').textContent=error;$('#management-new-group-name').classList?.add('ai-field-error');$('#management-new-group-name').setAttribute?.('aria-invalid','true');return}
+ referenceMaterialGroups.push(path);
+ managementGroupInfo.set(path,{description:$('#management-new-group-description').value.trim(),coverUrl:newManagementGroupDraft.coverUrl,createdBy:currentReviewer});
+ const parts=parent.split(' / ');parts.forEach((_,index)=>expandedManagementGroups.add(parts.slice(0,index+1).join(' / ')));
+ newManagementGroupDraft=null;closeModal();selectManagedGroup(path);toast('子素材组已创建');
+}
+
+const selectedManagementPlaceholders=new Set();
+const managementPlaceholderRecords=new Map();
+function managementPlaceholderAssets(){if(managementGroupInfo.has(activeMaterialGroup))return [];return (activeMaterialGroup==='根素材组-1'?[['方案资料-示例','PPTX','11.33 MB'],['产品资料-示例','PDF','26.55 MB']]:[
+ ['发布版','MOV','1.14 GB'],['发布版','MP4','631.2 MB'],['匠心独艺-发布版','MP4','584.1 MB'],
+ ['发布版','MP4','416.08 MB'],['纯净版','MP4','405.22 MB'],['发布版','MP4','725.95 MB'],
+ ['菜谱视频-纯净版','MP4','265.35 MB'],['菜谱视频-发布版','MP4','74.64 MB'],['纯净版','MP4','717.3 MB'],
+ ['产品应用介绍','PPTX','36.5 MB'],['活动主视觉源文件','PSD','128.4 MB'],['菜谱海报','JPG','1.99 MB'],
+]).map(([name,type,size],index)=>{
+ const key=activeMaterialGroup+'#'+index;
+ if(!managementPlaceholderRecords.has(key))managementPlaceholderRecords.set(key,{name,type,size,placeholder:true,demoIndex:index,key,
+  metadata:{group:activeMaterialGroup,kind:'菜式应用',product:'鲜麻青花椒酱',channel:'官微',version:'V1.0',desc:'',storageTags:[]}});
+ return managementPlaceholderRecords.get(key);
+})}
+function toggleManagementPlaceholder(index){
+ const item=managementPlaceholderAssets()[index];if(!item)return;
+ if(selectedManagementPlaceholders.has(item.key))selectedManagementPlaceholders.delete(item.key);
+ else selectedManagementPlaceholders.add(item.key);
+ drawRows();
+}
+function managementAssetCard(item,index){
+ const checked=item.placeholder?selectedManagementPlaceholders.has(item.key):selectedStoredAssets.has(items[item.i]);
+ const action=item.placeholder?`toggleManagementPlaceholder(${item.demoIndex})`:`toggleStoredSelection(${item.i})`;
+ const image=item.previewUrl&&formatGroup(item.type)==='图片'?`<img src="${esc(item.previewUrl)}" alt="${esc(item.name)}">`:
+  `<span>${item.placeholder?'暂无权限':esc(item.type||'文件')}</span>`;
+ return `<article class="management-material-card ${checked?'is-selected':''}"><div class="management-material-thumbnail" role="button" tabindex="0" aria-label="查看 ${esc(item.name)} 详情" onclick="openManagementDetail(${item.placeholder?item.demoIndex:item.i},${!!item.placeholder})" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();openManagementDetail(${item.placeholder?item.demoIndex:item.i},${!!item.placeholder})}">${image}<button type="button" class="management-material-select" aria-label="${checked?'取消选中':'选中'} ${esc(item.name)}" aria-pressed="${checked}" onclick="event.stopPropagation();${action}">${checked?storedActionIcon('<path d="m5 12 4 4L19 6"/>'):''}</button></div>
+ ${item.placeholder?`<div class="management-material-title" title="${esc(item.name)}" onclick="openManagementDetail(${item.demoIndex},true)">${esc(item.name)}</div>`:`<button type="button" class="management-material-title" onclick="openStoredAsset(${item.i})">${esc(item.name)}</button>`}
+ <div class="management-material-data">${storedAssetMetrics(item)}<div class="management-material-format"><span>${esc(item.type||'—')}</span><span>${esc(item.size||'—')}</span></div></div></article>`;
+}
+const managementSelectionActions=[
+ ['重命名','<path d="M3 7h15v10H3zM9 10v4m12-9v14"/>'],
+ ['编辑信息','<path d="m14 6 4 4M4 20l4-.8L20 7l-3-3L5 16z"/>'],
+ ['下载','<path d="M12 3v12m-4-4 4 4 4-4M4 16v4h16v-4"/>'],
+ ['分享','<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.5 6.8-4m-6.8 7 6.8 4"/>'],
+ ['新建子素材组','<path d="M3 6h7l2 2h9v12H3zM12 11v6m-3-3h6"/>'],
+ ['复制素材组','<path d="M8 8h13v13H8zM3 16V3h13"/>'],
+ ['解散素材组','<path d="M3 6h7l2 2h9v12H3zM8 14h8"/>'],
+ ['删除组及素材','<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 10v7m4-7v7"/>'],
+];
+let managementRenameBatch=[];
+const managementNameReferences=['原名称','数字升序↑','数字降序↓','自定义标签','素材类型','年份-月份','菜价定位','菜式定位','菜系','分发平台','使用渠道（OG）','渠道性质','电商平台','使用风险','厨师类型','时令','食材','味型','烹饪手法','菜式类型','网页导入账号','内容检测','社媒平台','区域','素材所属专区','AI标签','素材维度','渠道','失效日期'];
+function managementProposedNames(template){
+ const fields={'素材类型':'kind','年份-月份':'yearMonth','菜价定位':'pricePosition','菜式定位':'dishPosition','菜系':'cuisine','分发平台':'distributionPlatform','使用渠道（OG）':'channel','渠道性质':'channelType','电商平台':'ecommerce','使用风险':'risk','厨师类型':'chefType','时令':'season','食材':'ingredients','味型':'flavor','烹饪手法':'cookingMethod','菜式类型':'dishType','网页导入账号':'importAccount','内容检测':'contentCheck','社媒平台':'socialPlatform','区域':'region','素材所属专区':'zone','素材维度':'dimension','渠道':'channel','失效日期':'expiryDate'};
+ return managementRenameBatch.map((item,index)=>{
+  const extension=item.name.match(/\.[A-Za-z0-9]+$/)?.[0]||'';
+  const base=item.name.slice(0,item.name.length-extension.length);
+  const name=template.replace(/\{([^{}]+)\}/g,(_,label)=>label==='原名称'?base:label==='数字升序↑'?String(index+1):label==='数字降序↓'?String(managementRenameBatch.length-index):['自定义标签','AI标签'].includes(label)?(item.metadata?.storageTags||[]).join('-'):String(item.metadata?.[fields[label]]||''));
+  return name.trim()+(extension&&!name.toLowerCase().endsWith(extension.toLowerCase())?extension:'');
+ });
+}
+function showManagementRename(){
+ managementRenameBatch=selectedManagementCards().map(item=>item.placeholder?managementPlaceholderRecords.get(item.key):items[item.i]);
+ if(!managementRenameBatch.length)return;
+ showStoredActionDialog('批量重命名',`<p class="sub">共选中 <strong>${managementRenameBatch.length}</strong> 项素材</p><div class="field"><label for="management-name-template">名称</label><input id="management-name-template" maxlength="150" placeholder="可点选下列关键信息引用/手动输入其他信息" oninput="paintManagementNames()"></div><h3>示例</h3><div id="management-name-examples" class="management-name-examples">—</div><h3>素材信息引用 <span class="intake-help" title="点击插入引用，系统按每份素材的信息生成名称；缺失信息不填充。">?</span></h3><div class="management-name-references">${managementNameReferences.map((name,index)=>`<button type="button" onclick="insertManagementNameReference(${index})">${esc(name)}</button>`).join('')}</div><p id="management-name-error" class="intake-error" role="alert"></p>`, '<button type="button" onclick="closeModal()">取消</button><button id="management-name-confirm" type="button" class="primary" disabled onclick="saveManagementNames()">确定</button>');
+ $('#stored-action-title').closest?.('.modal')?.classList?.add('management-rename-modal');
+ $('#management-name-template').focus?.();
+}
+function insertManagementNameReference(index){
+ const input=$('#management-name-template'),token='{'+managementNameReferences[index]+'}';
+ const start=input.selectionStart??input.value.length,end=input.selectionEnd??start;
+ input.value=input.value.slice(0,start)+token+input.value.slice(end);
+ input.focus?.();input.setSelectionRange?.(start+token.length,start+token.length);paintManagementNames();
+}
+function paintManagementNames(){
+ const template=$('#management-name-template').value;
+ $('#management-name-examples').innerHTML=template.trim()?managementProposedNames(template).map(name=>`<div>${esc(name||'—')}</div>`).join(''):'—';
+ $('#management-name-confirm').disabled=!template.trim();$('#management-name-error').textContent='';
+}
+function saveManagementNames(){
+ const template=$('#management-name-template').value.trim();if(!template)return;
+ const names=managementProposedNames(template),keys=names.map(name=>name.normalize('NFC').toLowerCase());
+ if(names.some(name=>!name||/^\.[A-Za-z0-9]+$/.test(name))){$('#management-name-error').textContent='请填写有效名称，或补充引用字段';return}
+ const used=[...items,...managementPlaceholderRecords.values()].filter(item=>!managementRenameBatch.includes(item)).map(item=>item.name.normalize('NFC').toLowerCase());
+ if(new Set(keys).size!==keys.length||keys.some(key=>used.includes(key))){$('#management-name-error').textContent='名字重复，请重新填写，可加入数字升序或降序区分';return}
+ managementRenameBatch.forEach((item,index)=>item.name=names[index]);closeModal();render();toast('已重命名所选素材');
+}
+function toggleManagementDownloadMenu(){
+ const menu=$('#management-download-menu');if(!menu)return;
+ menu.hidden=!menu.hidden;
+ $('#management-download-trigger')?.setAttribute?.('aria-expanded',String(!menu.hidden));
+ const rect=$('#management-download-trigger')?.getBoundingClientRect?.();
+ if(rect&&menu.style){menu.style.left=Math.max(12,Math.min(rect.left,window.innerWidth-300))+'px';menu.style.bottom=(window.innerHeight-rect.top+8)+'px'}
+}
+function managementDownloadMenu(){return `<div id="management-download-menu" class="management-download-menu" role="group" aria-label="下载选项" hidden><button type="button" onclick="managementDownloadChoice(0)">下载</button><button type="button" onclick="managementDownloadChoice(1)">下载指定尺寸或大小</button><button type="button" onclick="managementDownloadChoice(2)">下载透明底图</button></div>`}
+let managementDownloadBatch=[];
+function managementDownloadChoice(mode){
+ $('#management-download-menu').hidden=true;
+ managementDownloadBatch=selectedManagementCards().filter(item=>!item.placeholder).map(item=>items[item.i]);
+ if(mode===0){downloadStoredBatch(managementDownloadBatch);return}
+ if(mode===1){showStoredActionDialog('下载指定尺寸或大小',`<p class="sub">只填写宽或高时保持图片比例。</p><div class="stored-download-dimensions"><label>宽度（px）<input id="management-download-width" type="number" min="1" max="8192"></label><label>高度（px）<input id="management-download-height" type="number" min="1" max="8192"></label><label>大小上限（KB）<input id="management-download-limit" type="number" min="1"></label></div>`, '<button onclick="closeModal()">取消</button><button class="primary" onclick="downloadManagementImages(false)">下载</button>');return}
+ downloadManagementImages(true);
+}
+async function downloadManagementImages(transparent){
+ const width=transparent?0:Number($('#management-download-width').value),height=transparent?0:Number($('#management-download-height').value),limit=transparent?0:Number($('#management-download-limit').value);
+ if([width,height,limit].some(value=>!Number.isFinite(value)||value<0)||width>8192||height>8192)return toast('请输入有效尺寸或大小');
+ const batch=managementDownloadBatch.filter(item=>['JPG','JPEG','PNG','GIF','WEBP'].includes(item.type));
+ if(!batch.length)return toast('所选素材暂无可转换的图片');
+ let count=0;
+ for(const item of batch){
+  try{
+   const url=item.metadata?.fileUrl||item.fileUrl||item.previewUrl;if(!url)continue;
+   const img=new Image();img.crossOrigin='anonymous';await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject;img.src=url});
+   const w=width||(height?Math.round(height*img.naturalWidth/img.naturalHeight):img.naturalWidth),h=height||(width?Math.round(width*img.naturalHeight/img.naturalWidth):img.naturalHeight);
+   if(w<1||h<1||w>8192||h>8192||w*h>16000000)continue;
+   const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;const context=canvas.getContext('2d');context.drawImage(img,0,0,w,h);
+   if(transparent)removeSolidImageBackground(context,w,h);
+   let blob;for(const quality of limit?[.92,.75,.55,.35,.15]:[1]){blob=await new Promise(resolve=>canvas.toBlob(resolve,limit&&!transparent?'image/jpeg':'image/png',quality));if(blob&&(!limit||blob.size<=limit*1024))break}
+   if(!blob||limit&&blob.size>limit*1024)continue;
+   const output=URL.createObjectURL(blob);if(startStoredDownload(item,output,item.name.replace(/\.[^.]+$/,'')+(transparent?'-透明底':'')+(limit&&!transparent?'.jpg':'.png')))count++;
+   setTimeout(()=>URL.revokeObjectURL(output),10000);
+  }catch{}
+ }
+ if(count){closeModal();drawRows();toast('已发起 '+count+' 项图片下载')}else toast('未能转换图片，请检查原文件、尺寸或大小限制');
+}
+document.addEventListener('click',event=>{if(!event.target.closest?.('#management-download-menu,#management-download-trigger')){const menu=$('#management-download-menu');if(menu)menu.hidden=true}});
+
+let managementShareBatch=[];
+let managementShareSequence=0;
+const managementShareLinks=new Map();
+function showManagementShare(){
+ managementShareBatch=selectedManagementCards().map(item=>item.placeholder?managementPlaceholderRecords.get(item.key):items[item.i]);
+ if(!managementShareBatch.length)return;
+ showStoredActionDialog('分享',`<p class="stored-share-heading">常用分享方式</p><div class="stored-share-row"><div class="stored-share-link"><input id="management-share-link" aria-label="分享链接" placeholder="点击创建链接" readonly><button id="management-share-create" type="button" class="primary" onclick="createManagementShareLink()">创建链接</button></div><button type="button" class="management-share-icon" title="二维码" aria-label="二维码" onclick="previewManagementShareQR()">${storedActionIcon('<path d="M3 3h6v6H3zM15 3h6v6h-6zM3 15h6v6H3zM15 15h3v3h-3zM18 18h3v3h-3zM12 3v3m0 6v3m-9-3h3m6 6v3m6-9h3"/>')}</button><button type="button" class="management-share-icon" title="邮件分享" aria-label="邮件分享" onclick="emailManagementShare()">${storedActionIcon('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/>')}</button></div><div class="stored-share-settings"><select id="management-share-scope" aria-label="分享范围" onchange="resetManagementShareLink()"><option>分享给系统内用户 - 审批后可下载</option><option>分享给系统内用户 - 可下载</option><option>分享给系统内用户 - 仅查看</option></select><select id="management-share-expiry" aria-label="链接有效期" onchange="resetManagementShareLink()"><option value="7">7天有效</option><option value="1">1天有效</option><option value="30">30天有效</option></select><details><summary>分享设置</summary><div class="management-share-settings-panel"><p>已选 ${managementShareBatch.length} 项素材</p><ul>${managementShareBatch.map(item=>`<li>${esc(item.name)}</li>`).join('')}</ul><p class="sub">演示链接仅在保留当前数据的会话中可用，分享权限为原型配置。</p></div></details></div><div id="management-share-qr" class="management-share-qr" hidden><div class="management-share-qr-placeholder">二维码预览占位</div><p class="sub">此处为二维码展示位置，当前未接入二维码生成。</p></div>`);
+ $('#stored-action-title').closest?.('.modal')?.classList?.add('management-share-modal');
+}
+function resetManagementShareLink(){
+ $('#management-share-link').value='';$('#management-share-create').textContent='创建链接';$('#management-share-qr').hidden=true;
+}
+async function createManagementShareLink(){
+ const input=$('#management-share-link');
+ if(input.value){
+  try{await navigator.clipboard.writeText(input.value);managementShareBatch.forEach(item=>item.shareCount=(Number(item.shareCount)||0)+1);drawRows();toast('已复制分享链接')}catch{input.select?.();toast('请手动复制选中的链接')}
+  return;
+ }
+ const key=String(++managementShareSequence),expiresAt=Date.now()+(Number($('#management-share-expiry').value)||7)*86400000;
+ managementShareLinks.set(key,{batch:[...managementShareBatch],group:activeMaterialGroup,expiresAt,scope:$('#management-share-scope').value});
+ input.value=location.href.split('#')[0]+'#selection-share='+key;$('#management-share-create').textContent='复制链接';
+}
+function previewManagementShareQR(){
+ if(!$('#management-share-link').value)return toast('请先创建链接');
+ $('#management-share-qr').hidden=!$('#management-share-qr').hidden;
+}
+function emailManagementShare(){
+ const url=$('#management-share-link').value;if(!url)return toast('请先创建链接');
+ location.href='mailto:?subject='+encodeURIComponent('素材分享')+'&body='+encodeURIComponent(url);
+}
+function openManagementSharedSelection(){
+ const key=location.hash.slice('#selection-share='.length),share=managementShareLinks.get(key);
+ if(!share)return toast('当前会话中找不到此分享');
+ if(share.expiresAt<=Date.now())return toast('分享链接已过期');
+ selectManagedGroup(share.group);selectedManagementPlaceholders.clear();selectedStoredAssets.clear();
+ share.batch.forEach(item=>{if(item.placeholder)selectedManagementPlaceholders.add(item.key);else if(items.includes(item))selectedStoredAssets.add(item)});drawRows();
+}
+
+let managementCopyDraft=null;
+const recentManagementCopyTargets=[];
+function managementCopyGroupPaths(){
+ const paths=new Set(referenceMaterialGroups);
+ for(const item of items)for(const group of [item.metadata?.group,...(item.additionalGroups||[])].filter(Boolean)){
+  const parts=group.split(' / ');parts.forEach((_,i)=>paths.add(parts.slice(0,i+1).join(' / ')));
+ }
+ return [...paths];
+}
+function showManagementCopy(){
+ managementCopyDraft={source:activeMaterialGroup,target:'',query:'',mine:false,creating:false,createParent:''};
+ showStoredActionDialog('复制至',`<div class="management-copy-search">${storedActionIcon('<circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/>')}<input id="management-copy-search" placeholder="输入素材组名称搜索" oninput="managementCopyDraft.query=this.value;paintManagementCopyTree()"></div><p class="sub">最近添加</p><div id="management-copy-recent" class="management-copy-recent">${(recentManagementCopyTargets.length?recentManagementCopyTargets:['根素材组-3','根素材组-2','根素材组-1']).slice(0,3).map(path=>`<button type="button" data-path="${esc(path)}" title="${esc(path)}" onclick="chooseManagementCopyTarget(this.dataset.path)">${sidebarIcon('layers')}${esc(path.split(' / ').at(-1))}</button>`).join('')}</div><div id="management-copy-tree" class="management-copy-tree"></div><label class="management-copy-mine"><input type="checkbox" onchange="managementCopyDraft.mine=this.checked;paintManagementCopyTree()">仅看我创建的</label><p id="management-copy-error" class="intake-error" role="alert"></p>`, '<button type="button" class="management-copy-new" onclick="beginInlineManagementGroup()">＋ 新建素材组</button><button type="button" onclick="closeModal()">取消</button><button type="button" class="primary" onclick="confirmManagementCopy()">确定</button>');
+ $('#stored-action-title').closest?.('.modal')?.classList?.add('management-copy-modal');paintManagementCopyTree();
+}
+function paintManagementCopyTree(){
+ if(!managementCopyDraft)return;
+ const draft=managementCopyDraft,all=managementCopyGroupPaths();
+ const matching=all.filter(path=>(!draft.query||path.toLowerCase().includes(draft.query.toLowerCase()))&&(!draft.mine||managementGroupInfo.get(path)?.createdBy===currentReviewer));
+ const visible=all.filter(path=>matching.some(match=>match===path||match.startsWith(path+' / ')));
+ const inline=parent=>draft.creating&&draft.createParent===parent?`<div class="management-copy-inline"><span aria-hidden="true">▱</span><input id="management-inline-group-name" placeholder="输入素材组名称" maxlength="100" onkeydown="if(event.key==='Enter'){event.preventDefault();saveInlineManagementGroup()}"><button type="button" class="management-inline-cancel" aria-label="取消新建" onclick="managementCopyDraft.creating=false;paintManagementCopyTree()">×</button><button type="button" aria-label="确认新建" onclick="saveInlineManagementGroup()">✓</button></div>`:'';
+ function tree(parent=''){
+  return inline(parent)+`<ul>${visible.filter(path=>managementParentPath(path)===parent).map(path=>{
+   const name=path.split(' / ').at(-1),children=visible.some(child=>managementParentPath(child)===path)||draft.creating&&draft.createParent===path;
+   const label=`<button type="button" class="${draft.target===path?'selected':''}" data-path="${esc(path)}" title="${esc(path)}" onclick="event.preventDefault();chooseManagementCopyTarget(this.dataset.path)">${sidebarIcon('folder')}<span>${esc(name)}</span></button>`;
+   return `<li>${children?`<details open><summary>${label}</summary>${tree(path)}</details>`:`<div class="management-copy-leaf">${label}</div>`}</li>`;
+  }).join('')}</ul>`;
+ }
+ $('#management-copy-tree').innerHTML=`<details open><summary><button type="button" class="${!draft.target?'selected':''}" onclick="event.preventDefault();chooseManagementCopyTarget('')">${sidebarIcon('folder')}全部</button></summary>${tree()}</details>`;
+}
+function chooseManagementCopyTarget(path){if(!managementCopyDraft)return;managementCopyDraft.target=path;managementCopyDraft.creating=false;$('#management-copy-error').textContent='';paintManagementCopyTree()}
+function beginInlineManagementGroup(){
+ const draft=managementCopyDraft;if(!draft)return;
+ draft.creating=true;draft.createParent=draft.target;draft.query='';$('#management-copy-search').value='';paintManagementCopyTree();
+ $('#management-inline-group-name')?.scrollIntoView?.({block:'nearest'});$('#management-inline-group-name')?.focus?.();
+}
+function saveInlineManagementGroup(){
+ const draft=managementCopyDraft;if(!draft?.creating)return;
+ const name=$('#management-inline-group-name').value.trim(),path=(draft.createParent?draft.createParent+' / ':'')+name;
+ if(!name||name.includes(' / ')){$('#management-copy-error').textContent='请填写有效的素材组名称';return}
+ if(managementCopyGroupPaths().some(group=>group.normalize('NFC').toLowerCase()===path.normalize('NFC').toLowerCase())){$('#management-copy-error').textContent='同级素材组名称重复，请重新填写';return}
+ referenceMaterialGroups.push(path);managementGroupInfo.set(path,{description:'',coverUrl:'',createdBy:currentReviewer});
+ draft.creating=false;draft.target=path;draft.query='';$('#management-copy-error').textContent='';paintManagementCopyTree();
+}
+function confirmManagementCopy(){
+ const draft=managementCopyDraft;if(!draft)return;
+ if(draft.creating){$('#management-copy-error').textContent='请先确认或取消新建素材组';return}
+ const paths=managementCopyGroupPaths(),source=draft.source,target=draft.target;
+ if(target===source||target.startsWith(source+' / ')){$('#management-copy-error').textContent='不能复制到自身或下级素材组';return}
+ const destination=(target?target+' / ':'')+source.split(' / ').at(-1);
+ if(paths.some(path=>path.normalize('NFC').toLowerCase()===destination.normalize('NFC').toLowerCase())){$('#management-copy-error').textContent='目标位置已有同名素材组，请选择其他位置';return}
+ const originals=paths.filter(path=>path===source||path.startsWith(source+' / '));
+ originals.forEach(path=>{const copy=destination+path.slice(source.length);referenceMaterialGroups.push(copy);managementGroupInfo.set(copy,{...(managementGroupInfo.get(path)||{}),createdBy:currentReviewer})});
+ // Copied groups refer to the original assets rather than duplicate the library records.
+ items.filter(item=>item.status==='已入库').forEach(item=>{
+  const groups=[item.metadata?.group,...(item.additionalGroups||[])].filter(Boolean);
+  const copies=groups.filter(group=>group===source||group.startsWith(source+' / ')).map(group=>destination+group.slice(source.length));
+  if(copies.length)item.additionalGroups=[...new Set([...(item.additionalGroups||[]),...copies])];
+ });
+ const at=recentManagementCopyTargets.indexOf(target);if(at>=0)recentManagementCopyTargets.splice(at,1);if(target)recentManagementCopyTargets.unshift(target);
+ managementCopyDraft=null;closeModal();render();toast('素材组已复制');
+}
+
+let pendingManagementGroupDelete=null;
+function showManagementGroupDelete(){
+ if(!managementGroupSelected)return;
+ const path=activeMaterialGroup,name=path.split(' / ').at(-1);
+ pendingManagementGroupDelete=path;
+ $('#overlay').innerHTML=`<div class="modalbg"><div class="modal management-group-delete-modal" role="dialog" aria-modal="true" aria-labelledby="management-group-delete-title"><div class="management-group-delete-body"><span class="management-group-delete-icon" aria-hidden="true">${storedActionIcon('<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>')}</span><div><h2 id="management-group-delete-title">确认删除 <span>「${esc(name)}」</span> 及其下素材？</h2><p>删除后，组内的全部素材将同时被移入「回收站」，<strong>如素材已被添加到其他素材组，将一并被删除</strong></p></div></div><div class="management-group-delete-actions"><button type="button" onclick="pendingManagementGroupDelete=null;closeModal()">取消</button><button type="button" class="management-delete-confirm" onclick="confirmManagementGroupDelete()">删除组及素材</button></div></div></div>`;
+}
+function confirmManagementGroupDelete(){
+ const path=pendingManagementGroupDelete;if(!path)return;
+ const within=value=>value===path||value?.startsWith(path+' / ');
+ const affected=items.filter(item=>item.status==='已入库'&&[item.metadata?.group,...(item.additionalGroups||[])].some(within));
+ for(const item of affected){
+  selectedStoredAssets.delete(item);storedAssetBasket.delete(item);
+  const index=items.indexOf(item);if(index>=0){items.splice(index,1);recycledAssets.unshift(item)}
+ }
+ for(const paths of [referenceMaterialGroups,referenceRelatedMaterials])for(let i=paths.length-1;i>=0;i--)if(within(paths[i]))paths.splice(i,1);
+ for(const key of managementGroupInfo.keys())if(within(key))managementGroupInfo.delete(key);
+ for(const [key,item] of managementPlaceholderRecords)if(within(item.metadata?.group))managementPlaceholderRecords.delete(key);
+ for(const key of expandedManagementGroups)if(within(key))expandedManagementGroups.delete(key);
+ for(const [parent,order] of managementGroupOrders){if(within(parent))managementGroupOrders.delete(parent);else managementGroupOrders.set(parent,order.filter(group=>!within(group)))}
+ selectedManagementPlaceholders.clear();selectedStoredAssets.clear();managementDetail=null;storedEditDraft=null;managementGroupSelected=false;
+ pendingManagementGroupDelete=null;closeModal();render();toast('素材组已删除，组内素材已移入回收站');
+}
+
+const recycledMaterialGroups=[];
+let pendingManagementGroupDissolve=null;
+function showManagementGroupDissolve(){
+ if(!managementGroupSelected)return;
+ pendingManagementGroupDissolve=activeMaterialGroup;
+ const name=activeMaterialGroup.split(' / ').at(-1);
+ $('#overlay').innerHTML=`<div class="modalbg"><div class="modal management-group-delete-modal" role="dialog" aria-modal="true" aria-labelledby="management-group-dissolve-title"><div class="management-group-delete-body"><span class="management-group-delete-icon" aria-hidden="true">${storedActionIcon('<circle cx="12" cy="12" r="9"/><path d="M7 12h10"/>')}</span><div><h2 id="management-group-dissolve-title">确认解散 <span>「${esc(name)}」</span>？</h2><p>素材组中的素材不会被删除，仍可在「全部素材」中找到；素材组会被移入「回收站」</p></div></div><div class="management-group-delete-actions"><button type="button" onclick="pendingManagementGroupDissolve=null;closeModal()">取消</button><button type="button" class="management-delete-confirm" onclick="confirmManagementGroupDissolve()">解散素材组</button></div></div></div>`;
+}
+function confirmManagementGroupDissolve(){
+ const source=pendingManagementGroupDissolve;if(!source)return;
+ const within=path=>path===source||path?.startsWith(source+' / ');
+ const paths=managementCopyGroupPaths().filter(within);
+ const memberships=[];
+ for(const item of items){
+  if(item.status!=='已入库')continue;
+  const groups=[item.metadata?.group,...(item.additionalGroups||[])].filter(Boolean);
+  if(!groups.some(within))continue;
+  memberships.push({item,group:item.metadata?.group,additionalGroups:[...(item.additionalGroups||[])]});
+  const remaining=[...new Set(groups.filter(group=>!within(group)))];
+  if(within(item.metadata?.group))item.metadata={...item.metadata,group:remaining.shift()||''};
+  else remaining.splice(remaining.indexOf(item.metadata?.group),1);
+  item.additionalGroups=remaining;
+ }
+ recycledMaterialGroups.unshift({path:source,paths,info:paths.map(path=>[path,managementGroupInfo.get(path)]),memberships,dissolvedAt:new Date().toISOString()});
+ for(const list of [referenceMaterialGroups,referenceRelatedMaterials])for(let i=list.length-1;i>=0;i--)if(within(list[i]))list.splice(i,1);
+ for(const path of managementGroupInfo.keys())if(within(path))managementGroupInfo.delete(path);
+ for(const path of expandedManagementGroups)if(within(path))expandedManagementGroups.delete(path);
+ for(const [parent,order] of managementGroupOrders){if(within(parent))managementGroupOrders.delete(parent);else managementGroupOrders.set(parent,order.filter(path=>!within(path)))}
+ selectedManagementPlaceholders.clear();selectedStoredAssets.clear();managementDetail=null;storedEditDraft=null;managementGroupSelected=false;
+ pendingManagementGroupDissolve=null;closeModal();render();toast('素材组已移入回收站，素材保留在全部素材中');
+}
+function recycledMaterialGroupSection(){return recycledMaterialGroups.length?`<div class="card"><div class="toolbar client-list-toolbar"><h2>已解散素材组</h2></div><table><thead><tr><th>素材组名称</th><th>原路径</th><th>解散时间</th></tr></thead><tbody>${recycledMaterialGroups.map(group=>`<tr><td>${esc(group.path.split(' / ').at(-1))}</td><td>${esc(group.path)}</td><td>${esc(group.dissolvedAt.slice(0,10))}</td></tr>`).join('')}</tbody></table></div>`:''}
+
+function selectedManagementCards(){
+ if(activeMaterialGroup==='根素材组-1')return rootOverviewAssets().filter(item=>item.placeholder?selectedManagementPlaceholders.has(item.key):selectedStoredAssets.has(items[item.i]));
+ const real=items.map((item,i)=>({...item,i})).filter(groupMatchesItem);
+ return real.length?real.filter(item=>item.name.includes(query)&&selectedStoredAssets.has(items[item.i])):
+  managementPlaceholderAssets().filter(item=>item.name.includes(query)&&selectedManagementPlaceholders.has(item.key));
+}
+function clearManagementCardSelection(){selectedManagementPlaceholders.clear();selectedStoredAssets.clear();drawRows()}
+function dismissManagementSelectionOutside(event){
+ if(page!=='groups'||!selectedManagementCards().length)return;
+ if(event.target.closest?.('.management-selection-toolbar,#management-download-menu,.management-material-select,.modalbg'))return;
+ clearManagementCardSelection();
+}
+document.addEventListener('click',dismissManagementSelectionOutside);
+function managementSelectionToolbar(){
+ const count=selectedManagementCards().length;if(!count)return '';
+ return `<div class="stored-batch-toolbar management-selection-toolbar" role="group" aria-label="已选 ${count} 项的操作"><span class="stored-batch-count">已选 ${count} 项</span>${managementSelectionActions.map(([label,icon],index)=>`<button type="button" ${index===2?'id="management-download-trigger" aria-haspopup="true" aria-expanded="false"':''} onclick="openManagementSelectionAction(${index})">${storedActionIcon(icon)}<span>${label}</span></button>`).join('')}<button type="button" class="stored-batch-clear" aria-label="取消全部选择" onclick="clearManagementCardSelection()">×</button></div>${managementDownloadMenu()}`;
+}
+function openManagementSelectionAction(index){
+ const chosen=selectedManagementCards();if(!chosen.length)return;
+ const label=managementSelectionActions[index]?.[0];if(!label)return;
+ if(label==='新建子素材组'){showNewManagementSubgroup();return}
+ if(label==='复制素材组'){showManagementCopy();return}
+ if(label==='删除组及素材'){showManagementGroupDelete();return}
+ if(label==='解散素材组'){showManagementGroupDissolve();return}
+ if(index===0){showManagementRename();return}
+ if(index===2){toggleManagementDownloadMenu();return}
+ if(index===3){showManagementShare();return}
+ if(index===1){const item=chosen[0];openManagementDetail(item.placeholder?item.demoIndex:item.i,!!item.placeholder);showStoredEdit();return}
+ if(chosen.every(item=>!item.placeholder)){
+  if(index===2){downloadStoredBatch(chosen.map(item=>items[item.i]));return}
+ }
+ showStoredActionDialog(label,`<p class="sub">操作入口预览 · 已选 ${chosen.length} 项</p><ul>${chosen.map(item=>`<li>${esc(item.name)}</li>`).join('')}</ul><p class="sub">${chosen.some(item=>item.placeholder)?'当前为占位卡片，用于展示选中及操作栏交互。':'该入口的具体执行规则待确认。'}</p>`, '<button type="button" onclick="closeModal()">关闭</button>');
+}
+
+let managementRootShowAll=false,managementRootView='grid',managementRootSort='created',managementRootCardSize=200;
+function rootOverviewChildren(){return managementCopyGroupPaths().filter(path=>managementRootShowAll?path.startsWith(activeMaterialGroup+' / '):managementParentPath(path)===activeMaterialGroup).filter(path=>path.split(' / ').at(-1).includes(query))}
+function rootOverviewAssets(){
+ const all=items.map((item,i)=>({...item,i})).filter(groupMatchesItem);
+ const real=managementRootShowAll?all:all.filter(item=>[item.metadata?.group,...(item.additionalGroups||[])].includes(activeMaterialGroup));
+ return (all.length?real:managementPlaceholderAssets()).filter(item=>item.name.includes(query));
+}
+function selectAllRootOverview(checked){
+ for(const item of rootOverviewAssets()){
+  const set=item.placeholder?selectedManagementPlaceholders:selectedStoredAssets,key=item.placeholder?item.key:items[item.i];
+  if(checked)set.add(key);else set.delete(key);
+ }
+ drawRows();
+}
+function drawRootOverview(){
+ let groups=rootOverviewChildren(),assets=rootOverviewAssets();
+ if(managementRootSort==='name'){groups.sort((a,b)=>a.localeCompare(b,'zh-CN'));assets.sort((a,b)=>a.name.localeCompare(b.name,'zh-CN'))}
+ $('#management-material-count').textContent=groups.length+assets.length;
+ $('#management-placeholder-note').textContent=assets.some(item=>item.placeholder)?'占位示例':'';
+ const checked=assets.length&&assets.every(item=>item.placeholder?selectedManagementPlaceholders.has(item.key):selectedStoredAssets.has(items[item.i]));
+ const controls=`<div class="management-root-controls"><label><input type="checkbox" aria-label="全选当前素材" ${checked?'checked':''} onchange="selectAllRootOverview(this.checked)">共 ${groups.length+assets.length} 项</label><div class="management-root-controls-right"><input aria-label="卡片大小" type="range" min="160" max="300" value="${managementRootCardSize}" oninput="managementRootCardSize=Number(this.value);document.getElementById('management-root-sections').style.setProperty('--root-card-size',this.value+'px')"><label><input type="checkbox" ${managementRootShowAll?'checked':''} onchange="managementRootShowAll=this.checked;drawRows()">显示全部素材组和素材</label><div class="management-root-view">${[['grid','▦','网格'],['columns','▥','三栏'],['list','☷','列表']].map(([key,icon,label])=>`<button type="button" title="${label}" aria-label="${label}" aria-pressed="${managementRootView===key}" onclick="managementRootView='${key}';drawRows()">${icon}</button>`).join('')}</div><select aria-label="排序" onchange="managementRootSort=this.value;drawRows()"><option value="created" ${managementRootSort==='created'?'selected':''}>创建时间</option><option value="name" ${managementRootSort==='name'?'selected':''}>素材名称</option></select></div></div>`;
+ $('#rows').innerHTML=controls+`<div id="management-root-sections" class="management-root-sections root-view-${managementRootView}" style="--root-card-size:${managementRootCardSize}px"><details class="management-root-section" open><summary>素材组（${groups.length}）</summary><div class="management-root-folders">${groups.map(path=>{
+  const info=managementGroupInfo.get(path),children=managementCopyGroupPaths().filter(group=>managementParentPath(group)===path).length,count=items.filter(item=>item.status==='已入库'&&[item.metadata?.group,...(item.additionalGroups||[])].some(group=>group===path||group?.startsWith(path+' / '))).length;
+  return `<button type="button" class="management-root-folder" data-path="${esc(path)}" onclick="selectManagedGroup(this.dataset.path)"><span class="management-root-folder-cover">${info?.coverUrl?`<img src="${esc(info.coverUrl)}" alt="">`:'<svg viewBox="0 0 100 80" aria-hidden="true"><path fill="#cbd3dc" d="M5 13a7 7 0 0 1 7-7h29l11 12H5z"/><rect x="5" y="16" width="90" height="61" rx="6" fill="#9eabba"/></svg>'}</span><strong>${esc(path.split(' / ').at(-1))}</strong><small>${children}素材组 · ${count}素材</small></button>`;
+ }).join('')}</div><p class="management-root-end">— 没有更多了 —</p></details><details class="management-root-section" open><summary>素材（${assets.length}）</summary><div class="management-root-assets">${assets.map(managementAssetCard).join('')}</div></details></div>`;
+ $('#stored-batch-host').innerHTML=managementSelectionToolbar();
+}
+
+function drawManagementCards(){
+ if(!managementGroupSelected){$('#rows').innerHTML='';$('#stored-batch-host').innerHTML='';return}
+ if(activeMaterialGroup==='根素材组-1'){drawRootOverview();return}
+ const real=items.map((item,i)=>({...item,i})).filter(groupMatchesItem);
+ const demo=!real.length;
+ const list=(demo?managementPlaceholderAssets():real).filter(item=>item.name.includes(query));
+ $('#management-material-count').textContent=list.length;
+ $('#management-placeholder-note').textContent=demo&&list.length?'占位示例':'';
+ $('#rows').innerHTML=list.length?list.map(managementAssetCard).join(''):'<div class="empty">暂无符合条件的素材</div>';
+ $('#stored-batch-host').innerHTML=managementSelectionToolbar();
+}
+
+let managementDetail=null;
+function openManagementDetail(index,placeholder=false){
+  managementGroupSelected=true;
+  const item=placeholder?managementPlaceholderAssets()[index]:items[index];
+  if(!item||!placeholder&&item.status!=='已入库')return;
+  storedEditDraft=null;
+  managementDetail={index,placeholder};
+  if(!placeholder){selected=index;storedAssetReturnPage='groups';item.viewCount=(Number(item.viewCount)||0)+1}
+  render();
+}
+function closeManagementDetail(){managementDetail=null;storedEditDraft=null;render()}
+function managementDetailPanel(){
+  if(!managementDetail)return '';
+  const {index,placeholder}=managementDetail;
+  const item=placeholder?managementPlaceholderAssets()[index]:items[index];
+  if(!item)return '';
+  return `<aside class="management-detail-panel" aria-label="素材详情"><div class="management-detail-top"><h2>素材详情</h2><button type="button" aria-label="关闭素材详情" onclick="closeManagementDetail()">×</button></div><div class="management-detail-scroll">${placeholder?`<section class="management-detail-placeholder"><div class="management-detail-placeholder-preview">暂无权限</div><h2>${esc(item.name)}</h2><p class="sub">占位素材 · ${esc(item.type)}</p><h3>基本信息</h3>${storedEditDraft?`${storedEditFields(item,item.metadata)}<div class="field"><label>素材简介</label><textarea id="stored-edit-desc" rows="4" maxlength="500">${esc(item.metadata.desc||'')}</textarea></div><div class="foot"><button type="button" onclick="cancelStoredEdit()">取消</button><button type="button" class="primary" onclick="saveStoredEdit()">确定</button></div>`:`<dl><dt>素材名称</dt><dd>${esc(item.name)}</dd><dt>素材组</dt><dd>${esc(activeMaterialGroup)}</dd><dt>文件格式</dt><dd>${esc(item.type)}</dd><dt>文件大小</dt><dd>${esc(item.size)}</dd></dl>`}</section>`:storedAssetDetail(item)}</div></aside>`;
+}
+
+function groupManagementContent(){return heading('素材组管理','')+`<div class="group-management-layout"><section class="card management-tree-panel"><h2>素材组</h2><nav class="management-tree" aria-label="素材组层级">${managementGroupTree()}</nav></section>${managementGroupSelected?`<section class="card management-group-content"><div class="toolbar"><div><h2>${esc(activeMaterialGroup.split(' / ').at(-1))}</h2><p class="sub management-group-path">${esc(activeMaterialGroup)}</p></div><div class="sub">共 <span id="management-material-count">${items.filter(groupMatchesItem).length}</span> 项 <span id="management-placeholder-note"></span></div></div><div id="rows" class="management-material-grid ${activeMaterialGroup==='根素材组-1'?'management-root-overview':''}"></div><div id="stored-batch-host"></div></section>${managementDetailPanel()}`:''}</div>`}
+
+function content(){if(page==='groups')return groupManagementContent();if(page==='trash')return storedTrashContent();if(page==='queue')return queueContent();if(page==='review')return queueContent();if(page==='upload')return upload();if(page==='tasks')return tasks();if(page==='detail')return detail();if(page==='guide')return guide();if(page==='group')return groupContent();let review=page==='review',lib=page==='library';return heading(review?'审核中心':lib?'全部素材':'入库工作台',review?'统一核对素材信息，确认后完成入库':lib?'已完成审核的素材可供浏览与复用':'从素材上传到审核入库，跟进每一份内容的处理进度',lib?`<button class="primary client-upload-all" onclick="chooseAddAction('file')">↥ 上传</button>`:`<button class="client-collect" onclick="taskModal()"><span aria-hidden="true">♧</span> 收素材</button>${addMenu()}`)+(!review&&!lib?`<div class="stats">${[['待人工审核',items.filter(x=>x.status==='待人工审核').length,'补全与查重已通过'],['待补充字段',items.filter(x=>x.status==='待补充字段').length,'需要上传人完善信息'],['相似待确认',items.filter(x=>x.dup).length,'相似图片等待确认'],['已入库',items.filter(x=>x.status==='已入库').length,'审核通过，可供使用']].map(([t,n,s])=>`<div class="stat"><div class="sub">${t}</div><div class="num">${n.toString().padStart(2,'0')}</div><em>${s}</em></div>`).join('')}</div>`:'')+`<div class="card">${!lib&&!review?`<div class="tabs">${['全部素材','待人工审核','待补充字段','相似待确认','已退回','已入库'].map(t=>`<button class="${filter===t?'sel':''}" onclick="filter='${t}';render()">${t}</button>`).join('')}</div>`:''}<div class="toolbar client-list-toolbar"><div class="client-total">素材 <span ${lib?'id="stored-list-count"':''} class="muted">（${items.filter(x=>review?x.status==='待人工审核':lib?x.status==='已入库':filter==='全部素材'||x.status===filter).length}）</span></div><div class="sub">${lib?'已入库内容':'按最近上传时间排序'}</div></div>${lib?`<div id="rows" class="stored-asset-grid"></div><div id="stored-batch-host"></div>`:`<table><thead><tr><th>素材名称</th><th>来源 / 上传人</th><th>信息处理</th><th>适用渠道</th><th>当前状态</th><th>操作</th></tr></thead><tbody id="rows"></tbody></table>`}</div>`}
 const queueSelection=new Set();
 const queuedFormDrafts=new Map();
 let archiveOrder=0;
@@ -566,15 +1059,18 @@ function storedAssetCard(item){
 }
 function reviewContent(){
   return `<div class="card pending-review-table"><table>
-    <thead><tr><th>素材名称</th><th>上传者</th><th>目标素材组</th><th>提交时间</th><th>状态</th><th>操作</th></tr></thead>
+    <thead><tr><th>素材名称</th><th>上传者</th><th>目标素材组</th><th>提交时间</th><th>素材数量</th><th>操作</th></tr></thead>
     <tbody id="rows"></tbody></table></div>`;
+}
+function collectedMaterialCount(item){
+  return items.filter(asset=>asset.externalSubmission&&(asset.collectionTask||null)===(item.collectionTask||null)).length;
 }
 function drawReviewRows(target){
   const rows=items.map((item,index)=>({item,index})).filter(({item})=>isReviewRecord(item)&&item.name.includes(query));
   target.innerHTML=rows.length?rows.map(({item,index})=>`<tr>
     <td><strong>${esc(item.name)}</strong></td><td>${esc(item.by)}<div class="muted">${esc(item.from)}</div></td>
     <td>${esc(item.metadata?.group)}</td><td>${esc(item.uploadedAt)}</td>
-    <td>${tag(externalReviewStatus(item))}</td>
+    <td class="collection-material-count">${collectedMaterialCount(item)} 个</td>
     <td>${item.status==='已退回'?'<span class="sub">等待重新上传</span>':item.aiState?.phase==='running'?'<span class="sub">AI 识别中</span>':`<button onclick="openExternalReview(${index})">去审核</button>`}</td>
   </tr>`).join(''):'<tr><td colspan="6" class="empty">暂无待审核素材</td></tr>';
 }
@@ -604,8 +1100,8 @@ function drawRows(){
     basketCount.textContent=storedAssetBasket.size;
     basketCount.hidden=!storedAssetBasket.size;
   }
-  if(page==='queue'){drawQueueRows();return}if(!$('#rows'))return;if(page==='review'){drawReviewRows($('#rows'));return}let arr=items.map((x,i)=>({...x,i})).filter(x=>x.name.includes(query)&&(page==='review'?x.status==='待人工审核':page==='library'?x.status==='已入库':page==='group'?groupMatchesItem(x):filter==='全部素材'||x.status===filter));
-if(page==='library'||page==='group'){
+  if(page==='groups'){drawManagementCards();return}if(page==='queue'){drawQueueRows();return}if(!$('#rows'))return;if(page==='review'){drawReviewRows($('#rows'));return}let arr=items.map((x,i)=>({...x,i})).filter(x=>x.name.includes(query)&&(page==='review'?x.status==='待人工审核':page==='library'?x.status==='已入库':['group','groups'].includes(page)?groupMatchesItem(x):filter==='全部素材'||x.status===filter));
+if(['library','group','groups'].includes(page)){
   if(appliedSearchTags.size)arr=arr.filter(item=>[...appliedSearchTags].every(label=>item.metadata?.storageTags?.includes(label)));
   const count=$('#stored-list-count');
   if(count)count.textContent=`（${arr.length}）`;
@@ -621,11 +1117,11 @@ if(page==='library'||page==='group'){
 }
 $('#rows').innerHTML=arr.length?arr.map(x=>`<tr><td><div class="row" style="gap:0;flex-wrap:nowrap"><span class="fileicon">${x.type}</span><div><b>${esc(x.name)}</b><div class="muted" style="margin-top:7px">${x.size} · 2026-11-04</div></div></div></td><td>${esc(x.from)}<div class="muted" style="margin-top:6px">${esc(x.by)}</div></td><td>${tag(x.manual?'纯人工审核':x.ai?'字段完整':'待补充字段')}</td><td>${esc(x.metadata?.channel||'—')}</td><td>${tag(x.status)}</td><td><button onclick="selected=${x.i};go('detail')">${x.status==='待人工审核'?'去审核':x.status==='待补充字段'?'补全信息':'查看详情'} →</button></td></tr>`).join(''):`<tr><td colspan="6" class="empty">暂无符合条件的素材</td></tr>`}
 let uploadDraft={},lastRenderedPage='',activeUploadFile=null,displayedUploadFile=null;
-const uploadFieldIds=['group','desc','kind','product','channel','version'];
+const uploadFieldIds=['group','desc','kind','product','channel','version','region','expiryMode','expiryDate','permissionScope'];
 function captureUploadDraft(){if(!['upload','agency'].includes(lastRenderedPage))return;for(let id of lastRenderedPage==='agency'?['channel','version']:uploadFieldIds){let node=$('#'+id);if(node&&node.tagName)uploadDraft[id]=node.value}if(displayedUploadFile){displayedUploadFile.metadata={...uploadDraft};let checkbox=$('#flatten-folders');if(checkbox)displayedUploadFile.flattenFolders=checkbox.checked}}
-function initialFileFields(){return {group:'CRM 素材库 / 2026年官微官抖素材',desc:'',kind:'',product:'',channel:'',version:'V1.0',storageTags:[]}}
-function ensureFileFields(file){if(!file.metadata)file.metadata=initialFileFields();if(!file.aiState)file.aiState={phase:'idle',token:0,mode:isFailureDemoFile(file)?'partial':'success',missing:[],showValidation:false};return file}
-function restoreActiveFields(){if(!files.includes(activeUploadFile))activeUploadFile=files[0]||null;if(activeUploadFile){ensureFileFields(activeUploadFile);uploadDraft={...activeUploadFile.metadata};uploadAI=activeUploadFile.aiState}else{uploadDraft=initialFileFields();uploadAI={phase:'idle',token:0,mode:'success',missing:[],showValidation:false}}for(let id of uploadFieldIds){let node=$('#'+id);if(node)node.value=uploadDraft[id]||''}paintUploadGroup();paintProductSelection();if($('#desc-count'))$('#desc-count').textContent=(uploadDraft.desc||'').length+'/500';if($('#flatten-folders'))$('#flatten-folders').checked=!!activeUploadFile?.flattenFolders;displayedUploadFile=activeUploadFile;paintStorageTags();paintVersionPanel()}
+function initialFileFields(){return {group:'CRM 素材库 / 2026年官微官抖素材',desc:'',kind:'',product:'',channel:'',version:'V1.0',storageTags:[],region:'',expiryMode:'permanent',expiryDate:'',permissionScope:'企业全员通用素材',permissions:defaultIntakePermissions()}}
+function ensureFileFields(file){if(!file.metadata)file.metadata=initialFileFields();file.metadata.region??='';file.metadata.expiryMode??='permanent';file.metadata.expiryDate??='';file.metadata.permissionScope??='企业全员通用素材';file.metadata.permissions??=defaultIntakePermissions();if(!file.aiState)file.aiState={phase:'idle',token:0,mode:isFailureDemoFile(file)?'partial':'success',missing:[],showValidation:false};return file}
+function restoreActiveFields(){if(!files.includes(activeUploadFile))activeUploadFile=files[0]||null;if(activeUploadFile){ensureFileFields(activeUploadFile);uploadDraft={...activeUploadFile.metadata};uploadAI=activeUploadFile.aiState}else{uploadDraft=initialFileFields();uploadAI={phase:'idle',token:0,mode:'success',missing:[],showValidation:false}}for(let id of uploadFieldIds){let node=$('#'+id);if(node)node.value=uploadDraft[id]||''}paintUploadGroup();paintProductSelection();if($('#desc-count'))$('#desc-count').textContent=(uploadDraft.desc||'').length+'/500';if($('#flatten-folders'))$('#flatten-folders').checked=!!activeUploadFile?.flattenFolders;displayedUploadFile=activeUploadFile;paintStorageTags();paintVersionPanel();paintIntakeExpiry();paintIntakePermissions()}
 function setUploadChecked(index,checked){if(!files[index])return;files[index].checked=!!checked;render()}
 function setAllUploadChecked(checked){files.forEach(file=>file.checked=!!checked);render()}
 function switchUploadFile(index){if(!files[index])return;captureUploadDraft();activeUploadFile=files[index];render();$('.upload-meta')?.scrollTo?.({top:0,behavior:'smooth'})}
@@ -748,10 +1244,74 @@ function addStorageTag(){let f=storageTagFile();if(!f)return;let value=$('#custo
 document.addEventListener?.('click',event=>{if(!event.target.closest?.('.storage-tags-field'))closeStorageTagDropdown()});document.addEventListener?.('keydown',event=>{if(event.key==='Escape')closeStorageTagDropdown()});
 function suggestedStorageTags(file){let name=file.name+' '+(file.originalName||'');let tags=['顺德鱼生','排骨','法棍','西餐'].filter(tag=>name.includes(tag)||tag==='顺德鱼生'&&name.includes('鱼生'));return tags.length?tags:['顺德鱼生','排骨','法棍','西餐']}
 function meta(){return `<div class="field"><label id="group-label"><span class="required">* </span>加入素材组</label>${uploadGroupPicker()}</div>`+storageTagControl()+`<div style="height:20px"></div>`+field('素材简介','<textarea id="desc" rows="3" maxlength="500" placeholder="请输入素材简介，可包含创意背景或使用说明（最多500字）"></textarea>')+`<div class="fields">`+field('素材类型',opts(['请选择素材类型',...materialKinds],'kind'),true)+field('产品标签',productDropdown(),true)+field('使用渠道（OG）',opts(['请选择使用渠道','官微','官抖','小红书','电商'],'channel'),true)+field('版本','<input id="version" placeholder="例如 V1.0" value="V1.0">'+versionControl(),true)+`</div>`}
+function defaultIntakePermissions(){return [
+  {kind:'enterprise',name:'企业内部',access:'可下载'},
+  {kind:'department',name:'内容运营部',access:'可编辑/删除'},
+  {kind:'member',name:currentReviewer,access:'所有者',owner:true},
+]}
+function intakeExtraFields(){return field('区域',`<select id="region" aria-label="区域"><option value="">请选择区域</option>${['北区','东区','西区','南区','港澳台地区'].map(name=>`<option>${name}</option>`).join('')}</select>`)+
+  field('素材失效日 <span class="intake-help" title="到期后素材失效；选择永久有效则不设置失效日期。">?</span>',`<input type="hidden" id="expiryMode" value="permanent"><div class="intake-expiry-options"><label><input type="radio" name="intake-expiry" id="expiry-date-option" onchange="setIntakeExpiryMode('date')">选择日期</label><label><input type="radio" name="intake-expiry" id="expiry-permanent-option" onchange="setIntakeExpiryMode('permanent')" checked>永久有效</label></div><input id="expiryDate" type="date" aria-label="素材失效日期"><div id="expiry-date-error" class="intake-error" role="alert"></div>`,true);
+}
+function paintIntakeExpiry(){
+  if(page!=='upload')return;
+  const dated=uploadDraft.expiryMode==='date';
+  $('#expiry-date-option').checked=dated;
+  $('#expiry-permanent-option').checked=!dated;
+  $('#expiryDate').hidden=!dated;
+  $('#expiryDate').disabled=!dated;
+  $('#expiryDate').required=dated;
+}
+function setIntakeExpiryMode(mode){
+  captureUploadDraft();
+  uploadDraft.expiryMode=mode;
+  $('#expiryMode').value=mode;
+  if(activeUploadFile)activeUploadFile.metadata={...uploadDraft};
+  paintIntakeExpiry();
+  paintMissingFields();
+}
+function intakePermissionControl(){return `<details class="intake-permissions" open><summary>权限信息</summary><div class="intake-permissions-body"><label for="permissionScope">素材权限范围 <span class="intake-help" title="配置当前素材的可见范围与操作权限。">?</span></label><select id="permissionScope" onchange="setIntakePermissionScope(this.value)"><option>企业全员通用素材</option><option>自定义权限</option></select><div id="intake-permission-groups"></div><details class="intake-permission-add"><summary>＋ 点击添加部门/维度/成员</summary><div class="intake-permission-form"><label>类型<select id="intake-permission-kind"><option value="enterprise">企业内/外</option><option value="department">部门/维度</option><option value="member">成员</option></select></label><label>名称<input id="intake-permission-name" placeholder="请输入部门、维度或成员名称"></label><label>权限<select id="intake-permission-access"><option>可下载</option><option>可查看</option><option>可编辑/删除</option></select></label><p id="intake-permission-error" class="intake-error" role="alert"></p><button type="button" onclick="addIntakePermission()">确定添加</button></div></details></div></details>`}
+function paintIntakePermissions(){
+  if(page!=='upload'||!activeUploadFile)return;
+  const grants=activeUploadFile.metadata.permissions||[];
+  $('#intake-permission-groups').innerHTML=[['enterprise','企业内/外','⌂'],['department','部门/维度','▤'],['member','成员','♙']].map(([kind,label,icon])=>{
+    const rows=grants.map((grant,index)=>({grant,index})).filter(row=>row.grant.kind===kind);
+    return `<section class="intake-permission-group"><div class="intake-permission-heading"><strong><span class="intake-permission-symbol ${kind}" aria-hidden="true">${icon}</span>${label}（${rows.length}个）</strong><button type="button" ${rows.some(row=>!row.grant.owner)?'':'disabled'} onclick="removeIntakePermissions('${kind}')">批量移除</button></div>${rows.map(({grant,index})=>`<div class="intake-permission-row"><span>${sidebarIcon(grant.kind==='member'?'person':'group')}${esc(grant.name)}</span>${grant.owner?'<span class="muted">所有者</span>':`<select aria-label="${esc(grant.name)}权限" onchange="setIntakePermissionAccess(${index},this.value)">${['可下载','可查看','可编辑/删除'].map(access=>`<option ${access===grant.access?'selected':''}>${access}</option>`).join('')}</select>`}</div>`).join('')}</section>`;
+  }).join('');
+}
+function saveIntakePermissions(grants){
+  uploadDraft.permissions=grants;
+  if(activeUploadFile)activeUploadFile.metadata={...uploadDraft};
+  paintIntakePermissions();
+}
+function setIntakePermissionScope(scope){
+  captureUploadDraft();
+  const grants=uploadDraft.permissions||[];
+  saveIntakePermissions(scope==='自定义权限'?grants.filter(grant=>grant.kind!=='enterprise'):
+    grants.some(grant=>grant.kind==='enterprise')?grants:[{kind:'enterprise',name:'企业内部',access:'可下载'},...grants]);
+}
+function removeIntakePermissions(kind){
+  captureUploadDraft();
+  if(kind==='enterprise'){$('#permissionScope').value='自定义权限';uploadDraft.permissionScope='自定义权限'}
+  saveIntakePermissions((uploadDraft.permissions||[]).filter(grant=>grant.kind!==kind||grant.owner));
+}
+function setIntakePermissionAccess(index,access){
+  captureUploadDraft();
+  saveIntakePermissions((uploadDraft.permissions||[]).map((grant,i)=>i===index&&!grant.owner?{...grant,access}:grant));
+}
+function addIntakePermission(){
+  const name=$('#intake-permission-name').value.trim(),kind=$('#intake-permission-kind').value,access=$('#intake-permission-access').value;
+  if(!name){$('#intake-permission-error').textContent='请输入名称';return}
+  captureUploadDraft();
+  const grants=uploadDraft.permissions||[];
+  if(grants.some(grant=>grant.kind===kind&&grant.name===name)){$('#intake-permission-error').textContent='该对象已添加';return}
+  saveIntakePermissions([...grants,{kind,name,access}]);
+  $('#intake-permission-name').value='';$('#intake-permission-error').textContent='';
+}
+
 function upload(){
   const reviewing=Boolean(externalReviewItem);
   const back=reviewing?"go('review')":"go('queue',{cancelApproval:true})";
-  return `<div class="upload-shell"><div class="upload-top"><div class="row"><button onclick="${back}" aria-label="返回">←</button><h2>素材入库</h2></div><div class="row"><button onclick="${back}">取消</button>${reviewing?`<button class="danger" onclick="openReviewReturn()">退回修改</button><button class="primary" onclick="reviewAction(true)">审核通过并入库</button>`:`<button class="primary" onclick="submitUpload(false)">入库</button>`}</div></div><div class="upload-body"><section class="upload-files"><div class="upload-tools"><div class="row"><span class="sub">已选 ${files.filter(f=>f.checked).length} 项</span>${reviewing?'':`<button onclick="renameSelected()" ${files.filter(f=>f.checked).length!==1?'disabled':''}>重命名所选</button><button onclick="files=files.filter(f=>!f.checked);render()" ${!files.some(f=>f.checked)?'disabled':''}>删除所选</button>`}</div></div><input type="file" id="picker" multiple style="display:none" onchange="addFiles(this.files,{toQueue:true})"><div class="upload-table" ${reviewing?'':`ondragover="event.preventDefault()" ondrop="event.preventDefault();addFiles(event.dataTransfer.files,{toQueue:true})"`}><table><thead><tr><th class="upload-selection-cell" style="width:48px"><input class="check" type="checkbox" aria-label="全选" ${files.length&&files.every(f=>f.checked)?'checked':''} onchange="setAllUploadChecked(this.checked)"></th><th>文件名称</th><th>文件重复检测</th><th>类型</th><th>大小</th>${reviewing?'':'<th>操作</th>'}</tr></thead><tbody>${files.map((f,i)=>`<tr><td class="upload-selection-cell"><input class="check" type="checkbox" aria-label="选择 ${esc(f.name)}" ${f.checked?'checked':''} onchange="setUploadChecked(${i},this.checked)"></td><td><div class="upload-file-name">${f.previewUrl&&['JPG','JPEG','PNG','GIF','WEBP'].includes(f.type)?`<img class="upload-file-thumbnail" src="${esc(f.previewUrl)}" alt="">`:''}<button class="upload-file-link ${f===activeUploadFile?'active':''}${f.aiState?.phase==='failed'?' ai-failed':''}" aria-pressed="${f===activeUploadFile}" onclick="switchUploadFile(${i})">${esc(f.name)}</button></div></td><td id="duplicate-${i}" aria-live="polite">${duplicateMarkup(f,i)}</td><td>${f.type}</td><td>${f.size}</td>${reviewing?'':`<td><button onclick="files.splice(${i},1);render()">删除</button></td>`}</tr>`).join('')}</tbody></table>${files.length?'':`<div class="upload-empty" onclick="$('#picker').click()"><span style="font-size:30px;color:#9aacaa">↥</span><p>请选择需要上传的素材</p><small>点击选择文件，或将文件拖拽至此</small><p><small>支持图片、视频、文档、设计源文件、纯文本、表格、字体、音频、压缩包及其他格式；单文件 ≤ 500 MB</small></p></div>`}</div></section><aside class="upload-meta"><div class="upload-group"><h2 id="group-label">加入素材组</h2><div style="margin-top:18px">${uploadGroupPicker()}</div></div><div class="upload-fields">${reviewing&&externalReviewItem.submissionNote?`<div class="notice"><strong>上传者备注</strong><div style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(externalReviewItem.submissionNote)}</div></div>`:''}<div id="upload-ai-status" class="upload-ai-status" role="status" aria-live="polite"></div>${storageTagControl()}${field('素材简介','<textarea id="desc" rows="5" maxlength="500" placeholder="请填写素材简介" oninput="this.nextElementSibling.textContent=this.value.length+String.fromCharCode(47)+500"></textarea><div id="desc-count" class="muted" style="text-align:right;margin-top:5px">0/500</div>',false,false)}${field('素材类型',opts(['请选择素材类型',...materialKinds],'kind'),true)}${field('产品标签',productDropdown(),true)}${field('使用渠道（OG）',opts(['请选择使用渠道','官微','官抖','小红书','电商'],'channel'),true)}${field('版本','<input id="version" value="V1.0" placeholder="请填写版本">'+versionControl(),true)}</div></aside></div></div>`}
+  return `<div class="upload-shell"><div class="upload-top"><div class="row"><button onclick="${back}" aria-label="返回">←</button><h2>素材入库</h2></div><div class="row"><button onclick="${back}">取消</button>${reviewing?`<button class="danger" onclick="openReviewReturn()">退回修改</button><button class="primary" onclick="reviewAction(true)">审核通过并入库</button>`:`<button class="primary" onclick="submitUpload(false)">入库</button>`}</div></div><div class="upload-body"><section class="upload-files"><div class="upload-tools"><div class="row"><span class="sub">已选 ${files.filter(f=>f.checked).length} 项</span>${reviewing?'':`<button onclick="renameSelected()" ${files.filter(f=>f.checked).length!==1?'disabled':''}>重命名所选</button><button onclick="files=files.filter(f=>!f.checked);render()" ${!files.some(f=>f.checked)?'disabled':''}>删除所选</button>`}</div></div><input type="file" id="picker" multiple style="display:none" onchange="addFiles(this.files,{toQueue:true})"><div class="upload-table" ${reviewing?'':`ondragover="event.preventDefault()" ondrop="event.preventDefault();addFiles(event.dataTransfer.files,{toQueue:true})"`}><table><thead><tr><th class="upload-selection-cell" style="width:48px"><input class="check" type="checkbox" aria-label="全选" ${files.length&&files.every(f=>f.checked)?'checked':''} onchange="setAllUploadChecked(this.checked)"></th><th>文件名称</th><th>文件重复检测</th><th>类型</th><th>大小</th>${reviewing?'':'<th>操作</th>'}</tr></thead><tbody>${files.map((f,i)=>`<tr><td class="upload-selection-cell"><input class="check" type="checkbox" aria-label="选择 ${esc(f.name)}" ${f.checked?'checked':''} onchange="setUploadChecked(${i},this.checked)"></td><td><div class="upload-file-name">${f.previewUrl&&['JPG','JPEG','PNG','GIF','WEBP'].includes(f.type)?`<img class="upload-file-thumbnail" src="${esc(f.previewUrl)}" alt="">`:''}<button class="upload-file-link ${f===activeUploadFile?'active':''}${f.aiState?.phase==='failed'?' ai-failed':''}" aria-pressed="${f===activeUploadFile}" onclick="switchUploadFile(${i})">${esc(f.name)}</button></div></td><td id="duplicate-${i}" aria-live="polite">${duplicateMarkup(f,i)}</td><td>${f.type}</td><td>${f.size}</td>${reviewing?'':`<td><button onclick="files.splice(${i},1);render()">删除</button></td>`}</tr>`).join('')}</tbody></table>${files.length?'':`<div class="upload-empty" onclick="$('#picker').click()"><span style="font-size:30px;color:#9aacaa">↥</span><p>请选择需要上传的素材</p><small>点击选择文件，或将文件拖拽至此</small><p><small>支持图片、视频、文档、设计源文件、纯文本、表格、字体、音频、压缩包及其他格式；单文件 ≤ 500 MB</small></p></div>`}</div></section><aside class="upload-meta"><div class="upload-group"><h2 id="group-label">加入素材组</h2><div style="margin-top:18px">${uploadGroupPicker()}</div></div><div class="upload-fields">${reviewing&&externalReviewItem.submissionNote?`<div class="notice"><strong>上传者备注</strong><div style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(externalReviewItem.submissionNote)}</div></div>`:''}<div id="upload-ai-status" class="upload-ai-status" role="status" aria-live="polite"></div>${storageTagControl()}${field('素材简介','<textarea id="desc" rows="5" maxlength="500" placeholder="请填写素材简介" oninput="this.nextElementSibling.textContent=this.value.length+String.fromCharCode(47)+500"></textarea><div id="desc-count" class="muted" style="text-align:right;margin-top:5px">0/500</div>',false,false)}${field('素材类型',opts(['请选择素材类型',...materialKinds],'kind'),true)}${field('产品标签',productDropdown(),true)}${field('使用渠道（OG）',opts(['请选择使用渠道','官微','官抖','小红书','电商'],'channel'),true)}${field('版本','<input id="version" value="V1.0" placeholder="请填写版本">'+versionControl(),true)}${intakeExtraFields()}</div>${intakePermissionControl()}</aside></div></div>`}
 function renameSelected(){let i=files.findIndex(f=>f.checked);if(i<0)return;$('#overlay').innerHTML=`<div class="modalbg"><div class="modal"><h2>重命名素材</h2><div style="margin-top:24px">${field('文件名称',`<input id="newname" value="${esc(files[i].name)}">`,true)}</div><div class="foot"><button onclick="closeModal()">取消</button><button class="primary" onclick="saveRename(${i})">保存</button></div></div></div>`}function saveRename(i){let name=$('#newname').value.trim();if(!name)return toast('请填写文件名称');if(name.split('.').pop().toUpperCase()!==files[i].type)return toast('请保留原文件扩展名');files[i].name=name;closeModal();render()}
 
 const similarityWarningThreshold=0.60;
@@ -826,13 +1386,13 @@ function acceptSimilarityWarning(){let prompt=pendingSimilarityPrompt;if(!prompt
 function syncDuplicateChecks(){if(page!=='upload')return;files.forEach(startDuplicateCheck);paintDuplicateChecks()}
 
 let uploadAI={fingerprint:'',phase:'idle',token:0,mode:'success',missing:[],showValidation:false};
-const uploadLabels={group:'素材组',desc:'素材简介',kind:'素材类型',product:'产品标签',channel:'使用渠道（OG）',version:'版本'};
+const uploadLabels={group:'素材组',desc:'素材简介',kind:'素材类型',product:'产品标签',channel:'使用渠道（OG）',version:'版本',expiryDate:'素材失效日'};
 function isFailureDemoFile(file){let name=String(file.originalName||file.name).normalize('NFKC').replace(/\s+/g,'').replace(/\.[^.]+$/,'').replace(/[—–－-]+/g,'-');return /[家京]乐素材-反/.test(name)||/^重过(?:[(（]\d+[)）])?$/.test(name)}
 function isDuplicateDemoFile(file){return String(file.originalName||file.name).normalize('NFKC').replace(/\s+/g,'').replace(/\.[^.]+$/,'').includes('重不过')}
 function isSuccessDemoFile(file){return isDuplicateDemoFile(file)|| !isFailureDemoFile(file)&&/^[家京]乐素材(?:[(（]\d+[)）])?$/.test(String(file.originalName||file.name).normalize('NFKC').replace(/\s+/g,'').replace(/\.[^.]+$/,''))}
 function effectiveAIMode(){return activeUploadFile&&isFailureDemoFile(activeUploadFile)?'partial':activeUploadFile&&isSuccessDemoFile(activeUploadFile)?'success':uploadAI.mode}
 function setAIMode(mode){captureUploadDraft();uploadAI.mode=mode;uploadAI.fingerprint='';if(!files.length)files=[{name:'春日新品_场景图.jpg',size:'8.2 MB',type:'JPG'}];render()}
-function missingUploadFields(){let required=[...new Set(['group','kind','product','channel','version',...uploadAI.missing])];return required.filter(id=>{let n=$('#'+id);return !n||!String(n.value||'').trim()||n.tagName==='SELECT'&&n.selectedIndex===0})}
+function missingUploadFields(){let required=[...new Set(['group','kind','product','channel','version',...($('#expiryMode').value==='date'?['expiryDate']:[]),...uploadAI.missing])];return required.filter(id=>{let n=$('#'+id);return !n||!String(n.value||'').trim()||n.tagName==='SELECT'&&n.selectedIndex===0})}
 function paintMissingFields(){if(!['upload','agency'].includes(page))return;let missing=missingUploadFields();let highlighted=uploadAI.showValidation?missing:missing.filter(id=>uploadAI.missing.includes(id));for(let id of Object.keys(uploadLabels)){let node=$('#'+id);if(!node)continue;let target=id==='group'?$('#group-summary'):id==='product'?node.closest?.('details')?.querySelector('summary'):node;let invalid=highlighted.includes(id);target?.classList?.toggle('ai-field-error',invalid);if(invalid)target?.setAttribute?.('aria-invalid','true');else target?.removeAttribute?.('aria-invalid');let host=node.closest?.('.field')||node.parentElement;if(!host)continue;let msg=host.querySelector?.('.ai-field-message');if(invalid&&!msg){msg=document.createElement('div');msg.className='ai-field-message';host.append(msg)}if(msg){if(invalid)msg.textContent=uploadAI.missing.includes(id)?'未识别到'+uploadLabels[id]+'，请手动补充':'请填写'+uploadLabels[id];else msg.remove()}}
 }
 function validateUploadFields(){uploadAI.showValidation=true;let missing=missingUploadFields();paintMissingFields();if(!missing.length)return true;let node=$('#'+missing[0]);let target=missing[0]==='group'?$('#group-summary'):missing[0]==='product'?node?.closest?.('details')?.querySelector('summary'):node;target?.scrollIntoView?.({block:'center',inline:'nearest',behavior:'smooth'});target?.focus?.({preventScroll:true});toast('无法提交，请补齐红框标记的字段：'+missing.map(id=>uploadLabels[id]).join('、'));return false}
@@ -953,6 +1513,7 @@ const referenceMaterialGroups=[
   '根素材组-1 / 子素材组1.2',
   '根素材组-1 / 子素材组1.2 / 子素材组1.2.1',
   '根素材组-1 / 子素材组1.3',
+  '根素材组-1 / 子素材组1.4',
   '根素材组-2','根素材组-3','根素材组-4',
   '根素材组-4 / 子素材组4.1',
   '根素材组-5','根素材组-5 / 子素材组5.1',
@@ -1203,7 +1764,7 @@ function confirmUploadYes(){if(!pendingUpload)return;if(pendingUpload.files.some
   let html=`<div class="upload-success-icon" aria-hidden="true">✓</div><h2 id="upload-confirm-title">上传成功</h2><div class="upload-confirm-actions"><button class="primary" onclick="acknowledgeUploadSuccess()">确定</button></div>`;let content=$('#upload-confirm-content');if(content)content.innerHTML=html}
 function acknowledgeUploadSuccess(){closeModal();go(uploadSuccessDestination)}
 
-function fileMissingFields(f){ensureFileFields(f);let required=[...new Set(['group','kind','product','channel','version',...f.aiState.missing])];return required.filter(id=>!String(f.metadata[id]||'').trim()||['kind','product','channel'].includes(id)&&String(f.metadata[id]).startsWith('请选择'))}
+function fileMissingFields(f){ensureFileFields(f);let required=[...new Set(['group','kind','product','channel','version',...(f.metadata.expiryMode==='date'?['expiryDate']:[]),...f.aiState.missing])];return required.filter(id=>!String(f.metadata[id]||'').trim()||['kind','product','channel'].includes(id)&&String(f.metadata[id]).startsWith('请选择'))}
 function validateAgencyFields(chosen){
   const invalid=chosen.find(file=>{
     const {channel,version}=file.metadata;
@@ -1269,7 +1830,7 @@ function newCollectionPassword(){let alphabet='abcdefghjkmnpqrstuvwxyz23456789';
 function refreshCollectionPassword(){let previous=collectionPassword;do{collectionPassword=newCollectionPassword()}while(collectionPassword===previous);if($('#task-password'))$('#task-password').value=collectionPassword}
 function setCollectionNotify(mode){collectionNotify=mode;let members=$('#notify-members');if(members)members.hidden=mode!=='members'}
 function taskModal(){collectionPassword=newCollectionPassword();collectionNotify='link';$('#overlay').innerHTML=`<div class="modalbg"><div class="modal collection-modal" role="dialog" aria-modal="true" aria-labelledby="collection-title"><h2 id="collection-title">创建收集素材任务</h2>${field('主题','<input id="tn" maxlength="50" placeholder="请输入主题">',true)}${field('合作组织','<input id="ta" placeholder="请输入合作组织">')}${field('目标素材组',opts(['CRM / 品牌内容','新品发布 / 产品图片'],'tg'),true)}${field('有效期','<select id="td"><option value="1">1天有效</option><option value="7" selected>7天有效</option><option value="30">30天有效</option><option value="0">永久有效</option></select>')}${field('备注','<textarea id="task-note" rows="3" placeholder="请输入任务备注"></textarea>')}<div class="collection-password-row"><label for="task-password">访问密码<span class="sub">（需输入密码才可访问）</span></label><input id="task-password" readonly value="${collectionPassword}"><button class="password-refresh" onclick="refreshCollectionPassword()">⟳ 刷新密码</button></div><div class="field"><label>通知方式</label><div class="collection-notify"><label><input type="radio" name="collection-notify" checked onchange="setCollectionNotify('link')">复制链接分享</label><label><input type="radio" name="collection-notify" onchange="setCollectionNotify('members')">通知指定成员</label></div></div><div id="notify-members" hidden>${field('指定成员','<input id="task-members" placeholder="请输入成员姓名，多人用逗号分隔">')}<p class="sub">原型仅记录通知方式，不实际发送通知。</p></div><div class="foot"><button onclick="closeModal()">取消</button><button class="primary" onclick="createTask()">生成任务</button></div></div></div>`}
-function closeModal(){$('#overlay').innerHTML='';pendingSimilarityPrompt=null}
+function closeModal(){if(newManagementGroupDraft){if(newManagementGroupDraft.coverUrl)URL.revokeObjectURL(newManagementGroupDraft.coverUrl);newManagementGroupDraft=null}$('#overlay').innerHTML='';pendingSimilarityPrompt=null}
 function createTask(){let name=$('#tn').value.trim(),agencyName=$('#ta').value.trim(),period=$('#td').value;if(!name||!period||!$('#tg').value)return toast('请完善任务必填信息');if(name.length>50)return toast('主题最多50个字');if(collectionNotify==='members'&&!$('#task-members').value.trim())return toast('请填写需要通知的指定成员');let days=Number(period),expiresAt=days?Date.now()+days*86400000:null;taskMade={name,agency:agencyName,reviewer:currentReviewer,group:$('#tg').value,date:expiresAt?new Date(expiresAt).toLocaleDateString('sv-SE',{timeZone:'Asia/Shanghai'}):'永久有效',expiryDays:days,expiresAt,note:$('#task-note').value,password:collectionPassword,notify:collectionNotify,members:collectionNotify==='members'?$('#task-members').value.trim():''};agencyUnlocked=false;render();showCollectionLink()}
 function showCollectionLink(){let link=location.href.split('#')[0]+'#agency';$('#overlay').innerHTML=`<div class="modalbg"><div class="modal collection-modal" role="dialog" aria-modal="true" aria-labelledby="collection-result-title"><h2 id="collection-result-title">任务已生成</h2><p class="sub">${esc(taskMade.name)}</p>${field('收集链接',`<input readonly value="${esc(link)}">`)}${field('访问密码',`<input readonly value="${esc(taskMade.password)}">`)}<p class="sub">有效期：${taskMade.expiryDays?taskMade.expiryDays+'天有效':'永久有效'}</p><p class="sub">${taskMade.notify==='members'?'通知指定成员：'+esc(taskMade.members)+'（演示记录）':'复制链接分享'}</p><div class="foot"><button onclick="closeModal();previewAgency()">预览访客页</button><button class="primary" onclick="copyLink()">复制链接</button><button onclick="closeModal()">确定</button></div></div></div>`}
 function copyLink(){let u=location.href.split('#')[0]+'#agency';if(!navigator.clipboard?.writeText)return toast('请使用“预览访客页”打开演示');navigator.clipboard.writeText(u).then(()=>toast('演示链接已复制（非真实授权链接）')).catch(()=>toast('请使用“预览访客页”打开演示'))}
@@ -1325,7 +1886,8 @@ let storedAssetReturnPage='library';
 function openStoredAsset(index){
   const item=items[index];
   if(item?.status!=='已入库')return;
-  if(page!=='detail')storedAssetReturnPage=page==='group'?'group':'library';
+  if(page==='groups'){openManagementDetail(index);return}
+  if(page!=='detail')storedAssetReturnPage=['group','groups'].includes(page)?page:'library';
   selected=index;
   item.viewCount=(Number(item.viewCount)||0)+1;
   go('detail');
@@ -1443,8 +2005,9 @@ function storedAssetToolbar(){
 }
 
 function currentStoredAsset(){
+  if(page==='groups'&&managementDetail?.placeholder)return managementPlaceholderAssets()[managementDetail.index]||null;
   const item=items[selected];
-  return page==='detail'&&item?.status==='已入库'?item:null;
+  return (page==='detail'||page==='groups'&&managementDetail&&!managementDetail.placeholder)&&item?.status==='已入库'?item:null;
 }
 function showStoredActionDialog(title,body,actions=''){
   $('#overlay').innerHTML=`<div class="modalbg"><div class="modal stored-action-modal" role="dialog" aria-modal="true" aria-labelledby="stored-action-title">
@@ -1620,6 +2183,7 @@ async function copyStoredShare(){
   }
 }
 function openStoredShareLink(){
+  if(location.hash.startsWith('#selection-share=')){openManagementSharedSelection();return}
   if(!location.hash.startsWith('#asset='))return;
   const key=location.hash.slice('#asset='.length);
   const link=storedShareLinks.get(key);
@@ -1682,6 +2246,7 @@ function deleteCurrentStoredAsset(){
   selectedStoredAssets.delete(item);
   storedAssetBasket.delete(item);
   recycledAssets.unshift(items.splice(selected,1)[0]);
+  if(page==='groups')managementDetail=null;
   closeModal();
   go(storedAssetReturnPage);
   toast('已移入回收站');
@@ -1690,8 +2255,8 @@ function storedTrashContent(){
   return heading('回收站','已删除的入库素材')+`<div class="card">
     ${recycledAssets.length?`<table><thead><tr><th>素材名称</th><th>素材组</th><th>上传时间</th></tr></thead>
       <tbody>${recycledAssets.map(item=>`<tr><td>${esc(item.name)}</td><td>${esc(item.metadata?.group||'—')}</td><td>${esc(item.uploadedAt||'—')}</td></tr>`).join('')}</tbody></table>`
-      :'<div class="empty">回收站暂无素材</div>'}
-  </div>`;
+      :recycledMaterialGroups.length?'':'<div class="empty">回收站暂无素材</div>'}
+  </div>`+recycledMaterialGroupSection();
 }
 const demoStoredComments=[
   {author:'许晴',date:'2026/11/09 09:15',text:'这张适合做菜谱封面，主菜很突出。'},
@@ -1772,7 +2337,7 @@ function storedAssetDetail(item){
   return `<div class="stored-detail">
     <div class="stored-detail-header">
       <div><span class="stored-detail-status">已入库</span><h1>${esc(item.name)}</h1></div>
-      <button type="button" onclick="go(storedAssetReturnPage)">← 返回列表</button>
+      ${page==='groups'?'':`<button type="button" onclick="go(storedAssetReturnPage)">← 返回列表</button>`}
     </div>
     <div class="stored-detail-overview">
       <section class="stored-detail-panel stored-detail-media-panel">

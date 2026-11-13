@@ -467,7 +467,7 @@ get('#desc').value='审核人修订后的简介';
 run('reviewAction(true)');
 assert.equal(run('items[1].metadata.desc'),'审核人修订后的简介');
 assert.equal(run('page'),'review');
-assert(get('#rows').innerHTML.includes('退回中'));
+assert.equal(run('externalReviewStatus(items[0])'),'退回中');
 assert(get('#rows').innerHTML.includes('外部退回.jpeg'));
 assert(!get('#rows').innerHTML.includes('外部通过.jpeg'));
 assert(!run('clientSidebar()').includes("go('review')"));
@@ -493,7 +493,7 @@ get('#channel').value='官微';
 run("submitUpload(true);go('review')");
 assert.equal(run('items.length'),itemCountBeforeResubmission);
 assert.equal(run('items[0].reviewHistory[0].reason'),'请修改封面文案');
-assert(get('#rows').innerHTML.includes('已上传'));
+assert.equal(run('externalReviewStatus(items[0])'),'已上传');
 assert(!get('#rows').innerHTML.includes('退回中'));
 timers.slice(resubmissionTimers).filter(timer=>timer.ms===2200).forEach(timer=>timer.fn());
 run('openExternalReview(0);reviewAction(true)');
@@ -729,3 +729,330 @@ get('#related-material-0').value='根素材组-3 / 已入库底稿.jpeg';
 run('confirmMaterialNames();refreshMaterialVersion(items[1])');
 assert.equal(run('items[1].metadata.version'),'V4.0');
 assert.equal(run('items[1].versionFamily'),run('items[0].versionFamily'));
+
+// Link totals include pending, returned and archived assets, without counting other links.
+run(`items=[
+ {externalSubmission:true,collectionTask:null,status:'待人工审核'},
+ {externalSubmission:true,collectionTask:null,status:'已退回'},
+ {externalSubmission:true,collectionTask:null,status:'已入库'},
+ {externalSubmission:true,collectionTask:{name:'另一条链接'},status:'待人工审核'},
+ {externalSubmission:false,status:'已入库'}
+]`);
+assert.equal(run('collectedMaterialCount(items[0])'),3);
+assert.equal(run('collectedMaterialCount(items[3])'),1);
+assert(run('reviewContent()').includes('<th>素材数量</th>'));
+run("items[1]={...items[1],status:'待人工审核'}");
+assert.equal(run('collectedMaterialCount(items[0])'),3);
+
+// Intake settings remain per-file and persist when a queued asset is archived.
+run(`closeModal();externalReviewItem=null;files=[];items=[];pendingUpload=null;
+files=['配置甲.jpeg','配置乙.jpeg'].map(name=>({name,type:'JPEG',size:'1 MB',checked:true,
+ duplicatePhase:'passed',approveFromQueue:true,metadata:{...initialFileFields(),kind:'案例',product:'金客满',channel:'官微'},
+ aiState:{phase:'done',missing:[]}}));go('upload')`);
+assert(get('#app').innerHTML.includes('港澳台地区'));
+assert(get('#app').innerHTML.includes('点击添加部门/维度/成员'));
+get('#region').value='东区';
+run("setIntakeExpiryMode('date')");
+assert(run('fileMissingFields(files[0])').includes('expiryDate'));
+get('#expiryDate').value='2027-12-31';
+get('#intake-permission-kind').value='member';
+get('#intake-permission-name').value='周晴';
+get('#intake-permission-access').value='可查看';
+run('addIntakePermission();switchUploadFile(1)');
+assert.equal(get('#region').value,'');
+assert.equal(run('files[1].metadata.permissions.length'),3);
+run('switchUploadFile(0)');
+assert.equal(get('#region').value,'东区');
+assert.equal(get('#expiryDate').value,'2027-12-31');
+assert.equal(get('#expiryDate').hidden,false);
+assert.equal(run('files[0].metadata.permissions[3].name'),'周晴');
+run("removeIntakePermissions('member')");
+assert.equal(run("files[0].metadata.permissions.filter(grant=>grant.kind==='member').length"),1);
+assert.equal(run("files[0].metadata.permissions.find(grant=>grant.owner).name"),'林晓');
+get('#permissionScope').value='自定义权限';
+run("setIntakePermissionScope('自定义权限')");
+assert(!run("files[0].metadata.permissions.some(grant=>grant.kind==='enterprise')"));
+run("setIntakeExpiryMode('permanent')");
+assert(!run('fileMissingFields(files[0])').includes('expiryDate'));
+assert.equal(get('#expiryDate').hidden,true);
+run("setIntakeExpiryMode('date');files[1].checked=false;submitUpload(false);confirmUploadYes()");
+assert.equal(run('items[0].metadata.region'),'东区');
+assert.equal(run('items[0].metadata.expiryDate'),'2027-12-31');
+assert.equal(run('items[0].metadata.permissionScope'),'自定义权限');
+assert.equal(run('items[0].metadata.permissions.length'),2);
+
+// Root overview mirrors the reference with four folders and two sample documents.
+run("closeModal();items=[];files=[];managementRootShowAll=false;selectManagedGroup('根素材组-1')");
+assert.equal(run('rootOverviewChildren().length'),4);
+assert.equal(run('rootOverviewAssets().length'),2);
+assert.equal(get('#management-material-count').textContent,6);
+assert(get('#rows').innerHTML.includes('素材组（4）'));
+assert(get('#rows').innerHTML.includes('素材（2）'));
+assert(get('#rows').innerHTML.includes('PPTX'));
+assert(get('#rows').innerHTML.includes('PDF'));
+assert.equal(run('items.length'),0);
+
+// Management tree follows the reference hierarchy and scopes stored assets to the selected folder.
+run(`closeModal();files=[];items=[
+ {name:'组内.jpeg',status:'已入库',type:'JPEG',metadata:{group:'根素材组-1 / 子素材组1.2 / 子素材组1.2.1'}},
+ {name:'组外.jpeg',status:'已入库',type:'JPEG',metadata:{group:'根素材组-3'}},
+ {name:'未入库.jpeg',status:'待人工审核',type:'JPEG',metadata:{group:'根素材组-1'}}
+];activeMaterialGroup='Portfolio-辣鲜露系列';openGroupManagement()`);
+assert.equal(run('page'),'groups');
+assert.equal(run('activeMaterialGroup'),'根素材组-1');
+assert(!get('#app').innerHTML.includes('class="card management-group-content"'));
+run("selectManagedGroup('根素材组-1')");
+assert(get('#app').innerHTML.includes('aria-label="素材组层级"'));
+assert(get('#app').innerHTML.includes('子素材组1.1.1'));
+assert(get('#app').innerHTML.includes('素材1.2.1.1'));
+assert(get('#app').innerHTML.includes('素材10.1'));
+run('managementRootShowAll=true;drawRows()');
+assert(get('#rows').innerHTML.includes('组内.jpeg'));
+assert(!get('#rows').innerHTML.includes('组外.jpeg'));
+assert(!get('#rows').innerHTML.includes('未入库.jpeg'));
+run('managementRootShowAll=false');
+run("selectManagedGroup('根素材组-3')");
+assert(get('#rows').innerHTML.includes('组外.jpeg'));
+assert(!get('#rows').innerHTML.includes('组内.jpeg'));
+run('openStoredAsset(1)');
+assert.equal(run('storedAssetReturnPage'),'groups');
+run("rememberManagementBranch({open:false,dataset:{path:'根素材组-1'}})");
+assert.equal(run("expandedManagementGroups.has('根素材组-1')"),false);
+
+// Sidebar can be hidden and restored without changing page, group or counters.
+run("go('groups')");
+const groupBeforeSidebarToggle=run('activeMaterialGroup');
+run('toggleClientSidebar()');
+assert.equal(run('sidebarCollapsed'),true);
+assert.equal(run('page'),'groups');
+assert(get('#app').innerHTML.includes('sidebar-collapsed'));
+assert(get('#app').innerHTML.includes('aria-label="展开导航栏"'));
+run("go('queue')");
+assert.equal(run('sidebarCollapsed'),true);
+run('toggleClientSidebar()');
+assert.equal(run('sidebarCollapsed'),false);
+assert.equal(run('activeMaterialGroup'),groupBeforeSidebarToggle);
+assert(get('#app').innerHTML.includes('aria-label="隐藏导航栏"'));
+
+// Placeholder cards demonstrate hover selection without creating library assets.
+run("items=[];files=[];go('groups')");
+assert.equal(run('items.length'),0);
+assert.equal(get('#management-material-count').textContent,12);
+assert(get('#rows').innerHTML.includes('暂无权限'));
+assert(get('#rows').innerHTML.includes('MOV'));
+assert(get('#rows').innerHTML.includes('management-material-select'));
+run('toggleManagementPlaceholder(0)');
+assert(get('#rows').innerHTML.includes('management-material-card is-selected'));
+run('toggleManagementPlaceholder(0)');
+assert(!get('#rows').innerHTML.includes('management-material-card is-selected'));
+run("query='菜谱海报';drawRows()");
+assert(get('#rows').innerHTML.includes('toggleManagementPlaceholder(11)'));
+assert.equal(run('items.length'),0);
+
+// Only a checked thumbnail opens the management bar; clearing selection hides it.
+run("items=[];files=[];query='';selectedManagementPlaceholders.clear();selectedStoredAssets.clear();go('groups')");
+assert(!get('#stored-batch-host').innerHTML.includes('management-selection-toolbar'));
+run("selectManagedGroup('根素材组-3')");
+assert(!get('#stored-batch-host').innerHTML.includes('management-selection-toolbar'));
+run('toggleManagementPlaceholder(0)');
+const managementBar=get('#stored-batch-host').innerHTML;
+const managementLabels=['重命名','编辑信息','下载','分享','新建子素材组','复制素材组','解散素材组','删除组及素材'];
+managementLabels.forEach((label,index)=>{
+ assert(managementBar.includes(label));
+ if(index)assert(managementBar.indexOf(managementLabels[index-1])<managementBar.indexOf(label));
+});
+run('toggleManagementPlaceholder(1)');
+assert(get('#stored-batch-host').innerHTML.includes('已选 2 项'));
+run('clearManagementCardSelection()');
+assert.equal(get('#stored-batch-host').innerHTML,'');
+
+// Opening details preserves the group grid; other images switch the panel and closing restores layout.
+run("items=[];files=[];go('groups');openManagementDetail(0,true)");
+assert.equal(run('page'),'groups');
+assert(get('#app').innerHTML.includes('management-detail-open'));
+assert(get('#app').innerHTML.includes('aria-label="关闭素材详情"'));
+assert(get('#app').innerHTML.includes('1.14 GB'));
+run('openManagementDetail(1,true)');
+assert.equal(run('managementDetail.index'),1);
+assert(get('#app').innerHTML.includes('631.2 MB'));
+assert.equal(run('items.length'),0);
+run('closeManagementDetail()');
+assert.equal(run('managementDetail'),null);
+assert(!get('#app').innerHTML.includes('class="client-main management-detail-open"'));
+run(`items=[
+ {name:'侧栏甲.jpeg',status:'已入库',type:'JPEG',metadata:{group:'根素材组-3',desc:'第一份简介'}},
+ {name:'侧栏乙.jpeg',status:'已入库',type:'JPEG',metadata:{group:'根素材组-3',desc:'第二份简介'}}
+];selectManagedGroup('根素材组-3');openStoredAsset(0)`);
+assert.equal(run('page'),'groups');
+assert.equal(run('currentStoredAsset().name'),'侧栏甲.jpeg');
+assert(get('#app').innerHTML.includes('第一份简介'));
+run('openStoredAsset(1)');
+assert.equal(run('currentStoredAsset().name'),'侧栏乙.jpeg');
+assert(get('#app').innerHTML.includes('第二份简介'));
+run('closeManagementDetail()');
+assert.equal(run('managementDetail'),null);
+assert.equal(run('page'),'groups');
+assert.equal(run('items.length'),2);
+
+// Editing a selected card opens the same detail sidebar in form mode.
+run("items=[];files=[];selectedManagementPlaceholders.clear();selectedStoredAssets.clear();selectManagedGroup('根素材组-3');toggleManagementPlaceholder(0);openManagementSelectionAction(1)");
+assert.equal(run('page'),'groups');
+assert(run('managementDetail.placeholder'));
+assert(run('storedEditDraft!==null'));
+assert(get('#app').innerHTML.includes('id="stored-edit-name"'));
+get('#stored-edit-name').value='占位编辑测试';get('#stored-edit-desc').value='已修改简介';
+run('saveStoredEdit()');
+assert.equal(run('storedEditDraft'),null);
+assert.equal(run('currentStoredAsset().name'),'占位编辑测试');
+assert(get('#rows').innerHTML.includes('占位编辑测试'));
+assert.equal(run('items.length'),0);
+run(`items=[{name:'编辑侧栏.jpeg',status:'已入库',type:'JPEG',metadata:{group:'根素材组-3',kind:'案例',product:'金客满',channel:'官微',desc:'原简介',storageTags:[]}}];
+selectedManagementPlaceholders.clear();selectedStoredAssets.clear();selectedStoredAssets.add(items[0]);openManagementSelectionAction(1)`);
+assert.equal(run('page'),'groups');
+assert(run('storedEditDraft!==null'));
+get('#stored-edit-name').value='编辑完成.jpeg';get('#stored-edit-desc').value='保存后的简介';
+run('saveStoredEdit()');
+assert.equal(run('items[0].name'),'编辑完成.jpeg');
+assert.equal(run('storedEditDraft'),null);
+assert(get('#app').innerHTML.includes('保存后的简介'));
+assert(!get('#app').innerHTML.includes('id="stored-edit-name"'));
+
+// Toolbar rename previews per-item references, blocks duplicate names and preserves extensions.
+run("closeModal();items=[];selectedStoredAssets.clear();selectedManagementPlaceholders.clear();selectManagedGroup('根素材组-3');toggleManagementPlaceholder(0);toggleManagementPlaceholder(1);openManagementSelectionAction(0)");
+assert(get('#overlay').innerHTML.includes('批量重命名'));
+assert(get('#overlay').innerHTML.includes('数字升序↑'));
+assert.equal(run('managementRenameBatch.length'),2);
+get('#management-name-template').value='相同名称';run('paintManagementNames();saveManagementNames()');
+assert(get('#management-name-error').textContent.includes('名字重复'));
+get('#management-name-template').value='重命名-{数字升序↑}';run('paintManagementNames();saveManagementNames()');
+assert.equal(run("managementPlaceholderAssets()[0].name"),'重命名-1');
+assert.equal(run("managementPlaceholderAssets()[1].name"),'重命名-2');
+run(`managementRenameBatch=[{name:'原稿.jpeg',metadata:{kind:'菜谱'}},{name:'演示.pptx',metadata:{kind:'产品'}}]`);
+assert.equal(run("managementProposedNames('{素材类型}-{数字升序↑}')[0]"),'菜谱-1.jpeg');
+assert.equal(run("managementProposedNames('{素材类型}-{数字升序↑}')[1]"),'产品-2.pptx');
+run('drawRows()');get('#management-download-menu').hidden=true;
+run('openManagementSelectionAction(2)');
+assert.equal(get('#management-download-menu').hidden,false);
+assert(get('#stored-batch-host').innerHTML.includes('下载指定尺寸或大小'));
+assert(get('#stored-batch-host').innerHTML.includes('下载透明底图'));
+run('managementDownloadChoice(1)');
+assert(get('#overlay').innerHTML.includes('management-download-width'));
+assert(get('#overlay').innerHTML.includes('management-download-limit'));
+
+// Group-card sharing opens the reference layout for placeholders and real selections.
+run("closeModal();items=[];selectedStoredAssets.clear();selectedManagementPlaceholders.clear();selectManagedGroup('根素材组-3');toggleManagementPlaceholder(0);openManagementSelectionAction(3)");
+assert(get('#overlay').innerHTML.includes('常用分享方式'));
+assert(get('#overlay').innerHTML.includes('aria-label="二维码"'));
+assert(get('#overlay').innerHTML.includes('邮件分享'));
+assert(get('#overlay').innerHTML.includes('审批后可下载'));
+assert(get('#overlay').innerHTML.includes('7天有效'));
+assert(get('#overlay').innerHTML.includes('分享设置'));
+get('#management-share-link').value='';get('#management-share-expiry').value='7';get('#management-share-scope').value='分享给系统内用户 - 审批后可下载';
+run("location.href='https://example.test/';createManagementShareLink()");
+assert(get('#management-share-link').value.includes('#selection-share='));
+assert.equal(run('managementShareLinks.get(String(managementShareSequence)).batch.length'),1);
+run('resetManagementShareLink()');
+assert.equal(get('#management-share-link').value,'');
+assert.equal(get('#management-share-create').textContent,'创建链接');
+
+// Management toolbar no longer includes permission or more entries.
+assert.equal(run("managementSelectionActions.some(([label])=>label==='权限'||label==='更多')"),false);
+
+// Six-dot handles reorder siblings while keeping every descendant path intact.
+run("closeModal();managementGroupOrders.clear();openGroupManagement()");
+assert(get('#app').innerHTML.includes('class="management-drag-handle" draggable="true"'));
+assert.equal(run("reorderManagementGroup('根素材组-3','根素材组-1')"),true);
+let reorderedTree=run('managementGroupTree()');
+assert(reorderedTree.indexOf('data-management-group="根素材组-3"')<reorderedTree.indexOf('data-management-group="根素材组-1"'));
+assert.equal(run("reorderManagementGroup('根素材组-1 / 子素材组1.3','根素材组-1 / 子素材组1.1')"),true);
+reorderedTree=run('managementGroupTree()');
+assert(reorderedTree.indexOf('data-management-group="根素材组-1 / 子素材组1.3"')<reorderedTree.indexOf('data-management-group="根素材组-1 / 子素材组1.1"'));
+assert(reorderedTree.includes('根素材组-1 / 子素材组1.2 / 子素材组1.2.1'));
+assert.equal(run("reorderManagementGroup('根素材组-3','根素材组-1 / 子素材组1.1')"),false);
+
+// Create a subgroup under the current folder; invalid/cancelled forms do not alter the tree.
+run("closeModal();items=[];selectedStoredAssets.clear();selectedManagementPlaceholders.clear();selectManagedGroup('根素材组-1');toggleManagementPlaceholder(0);openManagementSelectionAction(4)");
+assert(get('#overlay').innerHTML.includes('新建素材组'));
+assert(get('#overlay').innerHTML.includes('封面图'));
+const groupsBeforeCreate=run('referenceMaterialGroups.length');
+get('#management-new-group-name').value='';run('saveNewManagementSubgroup()');
+assert.equal(run('referenceMaterialGroups.length'),groupsBeforeCreate);
+assert(get('#management-new-group-error').textContent.includes('请填写'));
+get('#management-new-group-name').value='子素材组1.1';run('saveNewManagementSubgroup()');
+assert(get('#management-new-group-error').textContent.includes('重复'));
+get('#management-new-group-name').value='新增子组';get('#management-new-group-description').value='这是一段描述';run('saveNewManagementSubgroup()');
+assert.equal(run('activeMaterialGroup'),'根素材组-1 / 新增子组');
+assert.equal(run("managementGroupInfo.get(activeMaterialGroup).description"),'这是一段描述');
+assert.equal(run('referenceMaterialGroups.length'),groupsBeforeCreate+1);
+assert.equal(get('#management-material-count').textContent,0);
+run('showNewManagementSubgroup();closeModal()');
+assert.equal(run('newManagementGroupDraft'),null);
+assert.equal(run('referenceMaterialGroups.length'),groupsBeforeCreate+1);
+
+// Copy destination dialog supports search, inline folder creation and keeps source assets intact.
+run("closeModal();items=[{name:'待复制.jpeg',type:'JPEG',status:'已入库',metadata:{group:'根素材组-1 / 子素材组1.2'}}];selectManagedGroup('根素材组-1');showManagementCopy()");
+assert(get('#overlay').innerHTML.includes('复制至'));
+assert(get('#overlay').innerHTML.includes('最近添加'));
+assert(get('#overlay').innerHTML.includes('仅看我创建的'));
+assert.equal(run("managementSelectionActions.some(([label])=>label==='移动素材组')"),false);
+run("managementCopyDraft.query='子素材组1.2';paintManagementCopyTree()");
+assert(get('#management-copy-tree').innerHTML.includes('子素材组1.2'));
+assert(!get('#management-copy-tree').innerHTML.includes('根素材组-10'));
+run("chooseManagementCopyTarget('根素材组-3');beginInlineManagementGroup()");
+assert(get('#management-copy-tree').innerHTML.includes('management-inline-group-name'));
+get('#management-inline-group-name').value='复制目标组';run('saveInlineManagementGroup()');
+assert.equal(run('managementCopyDraft.target'),'根素材组-3 / 复制目标组');
+run('confirmManagementCopy()');
+assert.equal(run('items.length'),1);
+assert.equal(run('items[0].metadata.group'),'根素材组-1 / 子素材组1.2');
+assert(run("items[0].additionalGroups.includes('根素材组-3 / 复制目标组 / 根素材组-1 / 子素材组1.2')"));
+assert(run("referenceMaterialGroups.includes('根素材组-3 / 复制目标组 / 根素材组-1')"));
+
+// Group deletion needs explicit confirmation and removes shared assets globally into trash.
+run(`closeModal();items=[
+ {name:'删除组内.jpeg',type:'JPEG',status:'已入库',metadata:{group:'根素材组-1 / 子素材组1.2'}},
+ {name:'跨组共享.jpeg',type:'JPEG',status:'已入库',metadata:{group:'根素材组-3'},additionalGroups:['根素材组-1 / 子素材组1.3']},
+ {name:'其他组保留.jpeg',type:'JPEG',status:'已入库',metadata:{group:'根素材组-3'}}
+];selectManagedGroup('根素材组-1');showManagementGroupDelete()`);
+assert(get('#overlay').innerHTML.includes('确认删除'));
+assert(get('#overlay').innerHTML.includes('「根素材组-1」'));
+assert(get('#overlay').innerHTML.includes('将一并被删除'));
+assert.equal(run('items.length'),3);
+run('pendingManagementGroupDelete=null;closeModal()');
+assert.equal(run('items.length'),3);
+run('showManagementGroupDelete();confirmManagementGroupDelete()');
+assert.equal(run('items.length'),1);
+assert.equal(run('items[0].name'),'其他组保留.jpeg');
+assert(run("recycledAssets.some(item=>item.name==='删除组内.jpeg')"));
+assert(run("recycledAssets.some(item=>item.name==='跨组共享.jpeg')"));
+assert(!run("referenceMaterialGroups.some(path=>path==='根素材组-1'||path.startsWith('根素材组-1 / '))"));
+assert.equal(run('managementGroupSelected'),false);
+
+// Outside clicks dismiss the black toolbar like its close button; controls and dialogs remain usable.
+run("closeModal();items=[];selectedStoredAssets.clear();selectedManagementPlaceholders.clear();selectManagedGroup('根素材组-3');toggleManagementPlaceholder(0)");
+assert(get('#stored-batch-host').innerHTML.includes('management-selection-toolbar'));
+run("dismissManagementSelectionOutside({target:{closest:()=>({})}})");
+assert(get('#stored-batch-host').innerHTML.includes('management-selection-toolbar'));
+run("dismissManagementSelectionOutside({target:{closest:()=>null}})");
+assert.equal(get('#stored-batch-host').innerHTML,'');
+assert.equal(run('selectedManagementCards().length'),0);
+
+// Dissolving preserves the assets (and their other memberships), recycling only the group.
+run(`closeModal();items=[
+ {name:'解散后保留.jpeg',status:'已入库',type:'JPEG',metadata:{group:'根素材组-4 / 子素材组4.1'}},
+ {name:'保留其他关联.jpeg',status:'已入库',type:'JPEG',metadata:{group:'根素材组-4'},additionalGroups:['根素材组-3']}
+];selectManagedGroup('根素材组-4');showManagementGroupDissolve()`);
+assert(get('#overlay').innerHTML.includes('确认解散'));
+assert(get('#overlay').innerHTML.includes('素材不会被删除'));
+const trashBeforeDissolve=run('recycledAssets.length');
+run('pendingManagementGroupDissolve=null;closeModal()');
+assert.equal(run('items.length'),2);
+run('showManagementGroupDissolve();confirmManagementGroupDissolve()');
+assert.equal(run('items.length'),2);
+assert.equal(run('recycledAssets.length'),trashBeforeDissolve);
+assert.equal(run('items[0].metadata.group'),'');
+assert.equal(run('items[1].metadata.group'),'根素材组-3');
+assert.equal(run('recycledMaterialGroups[0].path'),'根素材组-4');
+run("go('library')");assert(get('#rows').innerHTML.includes('解散后保留.jpeg'));
+run("go('trash')");assert(get('#app').innerHTML.includes('已解散素材组'));
+assert(get('#app').innerHTML.includes('根素材组-4'));
